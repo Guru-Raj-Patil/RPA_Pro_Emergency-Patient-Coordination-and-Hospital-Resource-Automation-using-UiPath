@@ -1,0 +1,115 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_HandleException"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CaseId"          Type="InArgument(x:String)" />
+    <x:Property Name="in_ExceptionType"   Type="InArgument(x:String)" />
+    <x:Property Name="in_ExceptionMessage" Type="InArgument(x:String)" />
+    <x:Property Name="in_Config"          Type="InArgument(x:Object)" />
+    <x:Property Name="in_DBPath"          Type="InArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Collections.Generic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="HandleException_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_HE">
+
+    <ui:LogMessage DisplayName="Log: Exception" Level="Error"
+      Message="[&quot;[HandleException] CaseId=&quot; &amp; in_CaseId &amp; &quot; ExType=&quot; &amp; in_ExceptionType &amp; &quot; Msg=&quot; &amp; in_ExceptionMessage]" />
+
+    <!-- Update DB with exception status -->
+        <ui:InvokeCode DisplayName="Mark Case as Exception in DB">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+If String.IsNullOrEmpty(in_DBPath) OrElse String.IsNullOrEmpty(in_CaseId) Then Return
+Dim now As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+Dim msg As String = in_ExceptionMessage.Replace("'", "''")
+Dim exType As String = in_ExceptionType.Replace("'","''")
+
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_ex_" & in_CaseId & ".py")
+Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
+
+Dim pyScript As String =
+    "import sqlite3" & Environment.NewLine &
+    "conn = sqlite3.connect(r'" & dbPathSafe & "')" & Environment.NewLine &
+    "conn.execute(""UPDATE EMERGENCY_CASES SET CaseStatus='Error', PendingAction=?, UpdatedAt=? WHERE CaseId=?"", (" &
+    """" & exType & ": " & msg & """, """ & now & """, """ & in_CaseId & """" &
+    "))" & Environment.NewLine &
+    "conn.commit()" & Environment.NewLine &
+    "conn.close()"
+
+System.IO.File.WriteAllText(pyFile, pyScript)
+Try
+    Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+    psi.UseShellExecute = False
+    psi.CreateNoWindow = True
+    psi.RedirectStandardError = True
+    Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+    Dim errOut As String = p.StandardError.ReadToEnd()
+    p.WaitForExit(5000)
+Catch
+    ' Silently ignore if DB update fails during exception handling
+End Try
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionType">[in_ExceptionType]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionMessage">[in_ExceptionMessage]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[in_DBPath]</InArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <!-- Write exception notification file -->
+    <ui:InvokeCode DisplayName="Write Exception Notification">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+Try
+    Dim cfg As Dictionary(Of String, String) = CType(in_Config, Dictionary(Of String, String))
+    Dim projRoot As String = If(cfg.ContainsKey("ProjectRoot"), cfg("ProjectRoot"), "")
+    If String.IsNullOrEmpty(projRoot) Then Return
+    Dim notifDir As String = System.IO.Path.Combine(projRoot, "Data", "Notifications")
+    If Not System.IO.Directory.Exists(notifDir) Then System.IO.Directory.CreateDirectory(notifDir)
+    Dim fileName As String = String.Format("EXCEPTION_{0}_{1}.txt", in_CaseId, DateTime.Now.ToString("yyyyMMdd_HHmmss"))
+    Dim content As String = "EMERGENCY RPA EXCEPTION REPORT" & Environment.NewLine &
+        "==============================" & Environment.NewLine &
+        "Case ID      : " & in_CaseId & Environment.NewLine &
+        "Exception    : " & in_ExceptionType & Environment.NewLine &
+        "Message      : " & in_ExceptionMessage & Environment.NewLine &
+        "Timestamp    : " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") & Environment.NewLine &
+        "Action       : Please review and resolve manually." & Environment.NewLine
+    System.IO.File.WriteAllText(System.IO.Path.Combine(notifDir, fileName), content)
+Catch
+    ' Silently ignore notification write failures
+End Try
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionType">[in_ExceptionType]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionMessage">[in_ExceptionMessage]</InArgument>
+        <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[in_Config]</InArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <ui:LogMessage DisplayName="Log: Exception Handled" Level="Info"
+      Message="[&quot;[HandleException] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Exception recorded. Manual intervention may be required.&quot;]" />
+  </Sequence>
+</Activity>

@@ -1,0 +1,137 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_CheckBloodInventory"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_BloodGroup"     Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredUnits"  Type="InArgument(x:Int32)" />
+    <x:Property Name="in_CaseId"         Type="InArgument(x:String)" />
+    <x:Property Name="in_DBPath"         Type="InArgument(x:String)" />
+    <x:Property Name="out_BloodStatus"   Type="OutArgument(x:String)" />
+    <x:Property Name="out_AvailableUnits" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_BelowThreshold" Type="OutArgument(x:Boolean)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CheckBloodInventory_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_CBI">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String"  Name="v_BloodStatus"    Default="Unavailable" />
+      <Variable x:TypeArguments="x:Int32"   Name="v_AvailableUnits" Default="0" />
+      <Variable x:TypeArguments="x:Int32"   Name="v_MinThreshold"   Default="3" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_BelowThreshold" Default="False" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: Blood Check" Level="Info"
+      Message="[&quot;[CheckBlood] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Checking &quot; &amp; in_BloodGroup &amp; &quot; x&quot; &amp; in_RequiredUnits &amp; &quot; units&quot;]" />
+
+    <TryCatch DisplayName="TryCatch: Blood Query">
+      <TryCatch.Try>
+                <ui:InvokeCode DisplayName="Query BLOOD_INVENTORY">
+          <ui:InvokeCode.Code>
+            <![CDATA[
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_blood_" & in_CaseId & ".py")
+Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
+
+Dim pyScript As String =
+    "import sqlite3" & Environment.NewLine &
+    "conn = sqlite3.connect(r'" & dbPathSafe & "')" & Environment.NewLine &
+    "r = conn.execute(""SELECT AvailableUnits, MinimumThreshold FROM BLOOD_INVENTORY WHERE BloodGroup=? LIMIT 1"", (""" & in_BloodGroup & """,)).fetchone()" & Environment.NewLine &
+    "print((str(r[0])+'|'+str(r[1])) if r else '0|3')" & Environment.NewLine &
+    "conn.close()"
+System.IO.File.WriteAllText(pyFile, pyScript)
+
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+psi.UseShellExecute = False
+psi.CreateNoWindow = True
+psi.RedirectStandardOutput = True
+psi.RedirectStandardError = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+Dim stdOut As String = p.StandardOutput.ReadToEnd().Trim()
+Dim errOut As String = p.StandardError.ReadToEnd().Trim()
+p.WaitForExit(10000)
+If p.ExitCode <> 0 Then Throw New Exception("SE-001: Blood-check Python failed: " & errOut) End If
+
+Dim parts As String() = stdOut.Split("|"c)
+Dim avail As Integer = 0
+Dim minThr As Integer = 3
+Integer.TryParse(parts(0), avail)
+If parts.Length > 1 Then Integer.TryParse(parts(1), minThr)
+
+v_AvailableUnits = avail
+v_MinThreshold   = minThr
+
+' Business Rule BR-03
+If avail >= in_RequiredUnits Then
+    v_BloodStatus = "Available"
+    v_BelowThreshold = (avail - in_RequiredUnits) < minThr
+Else
+    v_BloodStatus    = "Unavailable"
+    v_BelowThreshold = False
+End If
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+            ]]>
+          </ui:InvokeCode.Code>
+          <ui:InvokeCode.Arguments>
+            <InArgument x:TypeArguments="x:String" x:Key="in_BloodGroup">[in_BloodGroup]</InArgument>
+            <InArgument x:TypeArguments="x:Int32"  x:Key="in_RequiredUnits">[in_RequiredUnits]</InArgument>
+            <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[in_DBPath]</InArgument>
+          
+            <OutArgument x:TypeArguments="x:String"  x:Key="v_BloodStatus">[v_BloodStatus]</OutArgument>
+            <OutArgument x:TypeArguments="x:Int32"   x:Key="v_AvailableUnits">[v_AvailableUnits]</OutArgument>
+            <OutArgument x:TypeArguments="x:Int32"   x:Key="v_MinThreshold">[v_MinThreshold]</OutArgument>
+            <OutArgument x:TypeArguments="x:Boolean" x:Key="v_BelowThreshold">[v_BelowThreshold]</OutArgument>
+          </ui:InvokeCode.Arguments>
+        </ui:InvokeCode>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Blood" />
+            </ActivityAction.Argument>
+            <Throw Exception="[New Exception(&quot;SE-001: Blood inventory DB error: &quot; &amp; ex_Blood.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <!-- Warn if blood will go below threshold after reservation -->
+    <If DisplayName="Check Below Threshold Warning" Condition="[v_BelowThreshold]">
+      <If.Then>
+        <ui:LogMessage Level="Warn"
+          Message="[&quot;[CheckBlood] ALERT: Post-reservation &quot; &amp; in_BloodGroup &amp; &quot; blood will fall below minimum threshold!&quot;]" />
+      </If.Then>
+    </If>
+
+    <ui:LogMessage DisplayName="Log: Blood Result" Level="Info"
+      Message="[&quot;[CheckBlood] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; in_BloodGroup &amp; &quot; Available=&quot; &amp; v_AvailableUnits &amp; &quot; Needed=&quot; &amp; in_RequiredUnits &amp; &quot; Status=&quot; &amp; v_BloodStatus]" />
+
+    <Assign DisplayName="Set out_BloodStatus">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_BloodStatus]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_BloodStatus]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_AvailableUnits">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_AvailableUnits]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_AvailableUnits]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_BelowThreshold">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_BelowThreshold]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_BelowThreshold]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

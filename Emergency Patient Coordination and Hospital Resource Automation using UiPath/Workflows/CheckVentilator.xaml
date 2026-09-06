@@ -1,0 +1,129 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_CheckVentilator"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_BedId"             Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorRequired" Type="InArgument(x:Boolean)" />
+    <x:Property Name="in_CaseId"            Type="InArgument(x:String)" />
+    <x:Property Name="in_DBPath"            Type="InArgument(x:String)" />
+    <x:Property Name="out_VentilatorStatus" Type="OutArgument(x:String)" />
+    <x:Property Name="out_VentilatorId"     Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CheckVentilator_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_CV">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_VentStatus" Default="Not_Required" />
+      <Variable x:TypeArguments="x:String" Name="v_VentId"     Default="" />
+    </Sequence.Variables>
+
+    <!-- If ventilator not required, short-circuit -->
+    <If DisplayName="VentilatorRequired?" Condition="[Not in_VentilatorRequired]">
+      <If.Then>
+        <Sequence DisplayName="Not Required Path">
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_VentilatorStatus]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["Not_Required"]</InArgument></Assign.Value>
+          </Assign>
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_VentilatorId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["N/A"]</InArgument></Assign.Value>
+          </Assign>
+          <ui:LogMessage DisplayName="Log: Vent Not Required" Level="Info"
+            Message="[&quot;[CheckVentilator] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Ventilator not required&quot;]" />
+        </Sequence>
+      </If.Then>
+      <If.Else>
+        <Sequence DisplayName="Else">
+          <!-- Ventilator IS required  - check via bed's linked ventilator -->
+          <TryCatch DisplayName="TryCatch: Vent Query">
+            <TryCatch.Try>
+                            <ui:InvokeCode DisplayName="Query Ventilator for Bed">
+                <ui:InvokeCode.Code>
+                  <![CDATA[
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_vent_" & in_CaseId & ".py")
+Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
+
+Dim pyScript As String =
+    "import sqlite3" & Environment.NewLine &
+    "conn = sqlite3.connect(r'" & dbPathSafe & "')" & Environment.NewLine &
+    "r = conn.execute(""SELECT v.VentilatorId, v.Status FROM VENTILATORS v JOIN BEDS b ON b.VentilatorId = v.VentilatorId WHERE b.BedId=? LIMIT 1"", (""" & in_BedId & """,)).fetchone()" & Environment.NewLine &
+    "print((r[0]+'|'+r[1]) if r else '|')" & Environment.NewLine &
+    "conn.close()"
+System.IO.File.WriteAllText(pyFile, pyScript)
+
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+psi.UseShellExecute = False
+psi.CreateNoWindow = True
+psi.RedirectStandardOutput = True
+psi.RedirectStandardError = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+Dim stdOut As String = p.StandardOutput.ReadToEnd().Trim()
+Dim errOut As String = p.StandardError.ReadToEnd().Trim()
+p.WaitForExit(10000)
+If p.ExitCode <> 0 Then Throw New Exception("SE-001: Ventilator-check Python failed: " & errOut) End If
+
+Dim parts As String() = stdOut.Split("|"c)
+If parts.Length = 2 AndAlso Not String.IsNullOrWhiteSpace(parts(0)) Then
+    v_VentId     = parts(0).Trim()
+    v_VentStatus = If(parts(1).Trim() = "Available", "Available", "Unavailable")
+Else
+    v_VentId     = ""
+    v_VentStatus = "Unavailable"
+End If
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+                  ]]>
+                </ui:InvokeCode.Code>
+                <ui:InvokeCode.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[in_BedId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[in_DBPath]</InArgument>
+                
+                  <OutArgument x:TypeArguments="x:String" x:Key="v_VentId">[v_VentId]</OutArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="v_VentStatus">[v_VentStatus]</OutArgument>
+                </ui:InvokeCode.Arguments>
+              </ui:InvokeCode>
+            </TryCatch.Try>
+            <TryCatch.Catches>
+              <Catch x:TypeArguments="s:Exception">
+                <ActivityAction x:TypeArguments="s:Exception">
+                  <ActivityAction.Argument>
+                    <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Vent" />
+                  </ActivityAction.Argument>
+                  <Throw Exception="[New Exception(&quot;SE-001: Ventilator check DB error: &quot; &amp; ex_Vent.Message)]" />
+                </ActivityAction>
+              </Catch>
+            </TryCatch.Catches>
+          </TryCatch>
+
+          <ui:LogMessage DisplayName="Log: Vent Result" Level="Info"
+            Message="[&quot;[CheckVentilator] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - VentStatus=&quot; &amp; v_VentStatus &amp; &quot; VentId=&quot; &amp; v_VentId]" />
+
+          <Assign DisplayName="Set out_VentilatorStatus">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_VentilatorStatus]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_VentStatus]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Set out_VentilatorId">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_VentilatorId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_VentId]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Else>
+    </If>
+  </Sequence>
+</Activity>

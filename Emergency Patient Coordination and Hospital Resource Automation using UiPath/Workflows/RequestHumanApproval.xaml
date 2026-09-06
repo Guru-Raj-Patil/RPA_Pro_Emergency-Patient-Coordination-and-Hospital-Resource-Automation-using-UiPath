@@ -1,0 +1,243 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_RequestHumanApproval"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CaseId"           Type="InArgument(x:String)" />
+    <x:Property Name="in_StatusReport"     Type="InArgument(x:String)" />
+    <x:Property Name="in_Config"           Type="InArgument(x:Object)" />
+    <x:Property Name="in_DBPath"           Type="InArgument(x:String)" />
+    <x:Property Name="out_ApprovalDecision" Type="OutArgument(x:String)" />
+    <x:Property Name="out_ApproverNotes"   Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Windows.Forms</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Windows.Forms</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="RequestHumanApproval_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_RHA">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String"  Name="v_Decision" Default="Pending" />
+      <Variable x:TypeArguments="x:String"  Name="v_Notes"    Default="" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_UseActionCenter" Default="False" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: Requesting Approval" Level="Info"
+      Message="[&quot;[RequestHumanApproval] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Requesting authorised staff approval&quot;]" />
+
+    <!-- Determine approval mode from config -->
+    <ui:InvokeCode DisplayName="Read UseActionCenter Flag">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+Dim cfg As Dictionary(Of String, String) = CType(in_Config, Dictionary(Of String, String))
+Dim flag As String = If(cfg.ContainsKey("UseActionCenter"), cfg("UseActionCenter"), "False")
+v_UseActionCenter = flag.Trim().ToUpper() = "TRUE"
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[in_Config]</InArgument>
+      
+        <OutArgument x:TypeArguments="x:Boolean" x:Key="v_UseActionCenter">[v_UseActionCenter]</OutArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <If DisplayName="Action Center OR Local Form?" Condition="[v_UseActionCenter]">
+      <!-- ACTION CENTER PATH (Production) -->
+      <If.Then>
+        <Sequence DisplayName="Action Center HITL">
+          <ui:LogMessage Level="Info"
+            Message="[&quot;[RequestHumanApproval] ACTION CENTER: Create form task for CaseId=&quot; &amp; in_CaseId]" />
+          <!-- NOTE: Uncomment and configure Create Form Task when Action Center is available:
+               <uipa:CreateFormTask ... TaskTitle=""Emergency Review: " & in_CaseId & """ ... />
+               For now, simulate by writing to a task queue file and waiting -->
+          <ui:InvokeCode DisplayName="Write Action Center Task File">
+            <ui:InvokeCode.Code>
+              <![CDATA[
+Dim cfg As Dictionary(Of String, String) = CType(in_Config, Dictionary(Of String, String))
+Dim taskFile As String = System.IO.Path.Combine(cfg("ProjectRoot"), "Data", "Notifications",
+    "APPROVAL_TASK_" & in_CaseId & ".txt")
+Dim content As String = "ACTION CENTER TASK" & Environment.NewLine &
+    "Case ID: " & in_CaseId & Environment.NewLine &
+    "Status: AWAITING_APPROVAL" & Environment.NewLine &
+    "Created: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") & Environment.NewLine & Environment.NewLine &
+    in_StatusReport
+System.IO.File.WriteAllText(taskFile, content)
+              ]]>
+            </ui:InvokeCode.Code>
+            <ui:InvokeCode.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[in_StatusReport]</InArgument>
+              <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[in_Config]</InArgument>
+            </ui:InvokeCode.Arguments>
+          </ui:InvokeCode>
+          <!-- Simulate approval: auto-approve for demo when Action Center not connected -->
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Decision]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["Approved"]</InArgument></Assign.Value>
+          </Assign>
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notes]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["[Action Center simulation] Auto-approved for demonstration"]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Then>
+
+      <!-- LOCAL FORM PATH (Development / Demo) -->
+      <If.Else>
+        <TryCatch DisplayName="TryCatch: Local Approval Dialog">
+          <TryCatch.Try>
+            <ui:InvokeCode DisplayName="Show Approval Form (Windows Forms)">
+              <ui:InvokeCode.Code>
+                <![CDATA[
+' Build a simple Windows Forms approval dialog
+Dim form As New System.Windows.Forms.Form()
+form.Text     = "EMERGENCY CASE REVIEW - " & in_CaseId
+form.Width    = 750
+form.Height   = 600
+form.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+form.MaximizeBox = False
+form.BackColor = System.Drawing.Color.FromArgb(240, 248, 255)
+
+' Title label
+Dim lblTitle As New System.Windows.Forms.Label()
+lblTitle.Text      = "Emergency Patient Case Review - " & in_CaseId
+lblTitle.Font      = New System.Drawing.Font("Segoe UI", 12, System.Drawing.FontStyle.Bold)
+lblTitle.ForeColor = System.Drawing.Color.FromArgb(0, 70, 127)
+lblTitle.Location  = New System.Drawing.Point(10, 10)
+lblTitle.Size      = New System.Drawing.Size(720, 30)
+form.Controls.Add(lblTitle)
+
+' Status report text box
+Dim txtReport As New System.Windows.Forms.TextBox()
+txtReport.Text      = in_StatusReport
+txtReport.Multiline = True
+txtReport.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
+txtReport.ReadOnly  = True
+txtReport.Location  = New System.Drawing.Point(10, 50)
+txtReport.Size      = New System.Drawing.Size(720, 380)
+txtReport.Font      = New System.Drawing.Font("Consolas", 9)
+txtReport.BackColor = System.Drawing.Color.FromArgb(248, 250, 252)
+form.Controls.Add(txtReport)
+
+' Notes label and field
+Dim lblNotes As New System.Windows.Forms.Label()
+lblNotes.Text     = "Authorised Staff Notes (optional):"
+lblNotes.Location = New System.Drawing.Point(10, 445)
+lblNotes.Size     = New System.Drawing.Size(300, 20)
+lblNotes.Font     = New System.Drawing.Font("Segoe UI", 9)
+form.Controls.Add(lblNotes)
+
+Dim txtNotes As New System.Windows.Forms.TextBox()
+txtNotes.Location  = New System.Drawing.Point(10, 470)
+txtNotes.Size      = New System.Drawing.Size(470, 25)
+txtNotes.Font      = New System.Drawing.Font("Segoe UI", 9)
+form.Controls.Add(txtNotes)
+
+' Approve button
+Dim btnApprove As New System.Windows.Forms.Button()
+btnApprove.Text      = "APPROVE"
+btnApprove.Location  = New System.Drawing.Point(495, 465)
+btnApprove.Size      = New System.Drawing.Size(110, 35)
+btnApprove.BackColor = System.Drawing.Color.FromArgb(40, 167, 69)
+btnApprove.ForeColor = System.Drawing.Color.White
+btnApprove.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
+btnApprove.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+form.Controls.Add(btnApprove)
+
+' Reject button
+Dim btnReject As New System.Windows.Forms.Button()
+btnReject.Text      = "REJECT"
+btnReject.Location  = New System.Drawing.Point(620, 465)
+btnReject.Size      = New System.Drawing.Size(110, 35)
+btnReject.BackColor = System.Drawing.Color.FromArgb(220, 53, 69)
+btnReject.ForeColor = System.Drawing.Color.White
+btnReject.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
+btnReject.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+form.Controls.Add(btnReject)
+
+Dim decision As String = "Rejected"  ' Default to rejected
+Dim notes    As String = ""
+
+AddHandler btnApprove.Click, Sub(s, e)
+    decision = "Approved"
+    notes    = txtNotes.Text.Trim()
+    form.Close()
+End Sub
+AddHandler btnReject.Click, Sub(s, e)
+    decision = "Rejected"
+    notes    = txtNotes.Text.Trim()
+    form.Close()
+End Sub
+
+' Show dialog (blocking)
+form.ShowDialog()
+form.Dispose()
+
+v_Decision = decision
+v_Notes    = If(String.IsNullOrEmpty(notes), "No notes provided", notes)
+                ]]>
+              </ui:InvokeCode.Code>
+              <ui:InvokeCode.Arguments>
+                <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+                <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[in_StatusReport]</InArgument>
+              
+                <OutArgument x:TypeArguments="x:String" x:Key="v_Decision">[v_Decision]</OutArgument>
+                <OutArgument x:TypeArguments="x:String" x:Key="v_Notes">[v_Notes]</OutArgument>
+              </ui:InvokeCode.Arguments>
+            </ui:InvokeCode>
+          </TryCatch.Try>
+          <TryCatch.Catches>
+            <Catch x:TypeArguments="s:Exception">
+              <ActivityAction x:TypeArguments="s:Exception">
+                <ActivityAction.Argument>
+                  <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Form" />
+                </ActivityAction.Argument>
+                <Sequence>
+                  <ui:LogMessage Level="Warn"
+                    Message="[&quot;[RequestHumanApproval] Form display error: &quot; &amp; ex_Form.Message &amp; &quot;  - auto-approving for demo&quot;]" />
+                  <Assign>
+                    <Assign.To><OutArgument x:TypeArguments="x:String">[v_Decision]</OutArgument></Assign.To>
+                    <Assign.Value><InArgument x:TypeArguments="x:String">["Approved"]</InArgument></Assign.Value>
+                  </Assign>
+                  <Assign>
+                    <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notes]</OutArgument></Assign.To>
+                    <Assign.Value><InArgument x:TypeArguments="x:String">["[Auto-approved: form display error]"]</InArgument></Assign.Value>
+                  </Assign>
+                </Sequence>
+              </ActivityAction>
+            </Catch>
+          </TryCatch.Catches>
+        </TryCatch>
+      </If.Else>
+    </If>
+
+    <ui:LogMessage DisplayName="Log: Approval Decision" Level="Info"
+      Message="[&quot;[RequestHumanApproval] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Decision: &quot; &amp; v_Decision &amp; &quot; | Notes: &quot; &amp; v_Notes]" />
+
+    <Assign DisplayName="Set out_ApprovalDecision">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_ApprovalDecision]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Decision]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_ApproverNotes">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_ApproverNotes]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Notes]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

@@ -1,0 +1,6 @@
+{
+  "Name": "Emergency Patient Coordination and Hospital Resource Automation using UiPath",
+  "ProjectType": "Process",
+  "Description": "Blank Process",
+  "MainFile": "Main.xaml"
+}

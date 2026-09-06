@@ -1,0 +1,120 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_CheckBedAvailability"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_RequiredDepartment"  Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorRequired"  Type="InArgument(x:Boolean)" />
+    <x:Property Name="in_CaseId"              Type="InArgument(x:String)" />
+    <x:Property Name="in_DBPath"              Type="InArgument(x:String)" />
+    <x:Property Name="out_BedStatus"          Type="OutArgument(x:String)" />
+    <x:Property Name="out_AvailableBedId"     Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CheckBedAvailability_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_CBA">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_BedStatus"  Default="Unavailable" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId"      Default="" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: Bed Search" Level="Info"
+      Message="[&quot;[CheckBed] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Searching &quot; &amp; in_RequiredDepartment &amp; &quot; beds. VentRequired=&quot; &amp; in_VentilatorRequired]" />
+
+    <TryCatch DisplayName="TryCatch: Bed Query">
+      <TryCatch.Try>
+                <ui:InvokeCode DisplayName="Query BEDS Table">
+          <ui:InvokeCode.Code>
+            <![CDATA[
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_bed_" & in_CaseId & ".py")
+Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
+
+Dim pyScript As New System.Text.StringBuilder()
+pyScript.AppendLine("import sqlite3")
+pyScript.AppendLine("conn = sqlite3.connect(r'" & dbPathSafe & "')")
+If in_VentilatorRequired Then
+    pyScript.AppendLine("r = conn.execute(""SELECT b.BedId FROM BEDS b JOIN VENTILATORS v ON b.VentilatorId = v.VentilatorId WHERE b.Department=? AND b.Status='Available' AND v.Status='Available' ORDER BY b.BedId LIMIT 1"", (""" & in_RequiredDepartment & """,)).fetchone()")
+Else
+    pyScript.AppendLine("r = conn.execute(""SELECT BedId FROM BEDS WHERE Department=? AND Status='Available' ORDER BY BedId LIMIT 1"", (""" & in_RequiredDepartment & """,)).fetchone()")
+End If
+pyScript.AppendLine("print(r[0] if r else '')")
+pyScript.AppendLine("conn.close()")
+System.IO.File.WriteAllText(pyFile, pyScript.ToString())
+
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+psi.UseShellExecute = False
+psi.CreateNoWindow = True
+psi.RedirectStandardOutput = True
+psi.RedirectStandardError = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+Dim stdOut As String = p.StandardOutput.ReadToEnd().Trim()
+Dim errOut As String = p.StandardError.ReadToEnd().Trim()
+p.WaitForExit(15000)
+If p.ExitCode <> 0 Then Throw New Exception("SE-001: Bed-check Python failed: " & errOut) End If
+
+If Not String.IsNullOrWhiteSpace(stdOut) Then
+    v_BedId     = stdOut
+    v_BedStatus = "Available"
+Else
+    v_BedId     = ""
+    v_BedStatus = "Unavailable"
+End If
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+            ]]>
+          </ui:InvokeCode.Code>
+          <ui:InvokeCode.Arguments>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_RequiredDepartment">[in_RequiredDepartment]</InArgument>
+            <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[in_VentilatorRequired]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_DBPath">[in_DBPath]</InArgument>
+          
+            <OutArgument x:TypeArguments="x:String" x:Key="v_BedId">[v_BedId]</OutArgument>
+            <OutArgument x:TypeArguments="x:String" x:Key="v_BedStatus">[v_BedStatus]</OutArgument>
+          </ui:InvokeCode.Arguments>
+        </ui:InvokeCode>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Bed" />
+            </ActivityAction.Argument>
+            <Sequence>
+              <ui:LogMessage Level="Error"
+                Message="[&quot;[CheckBed] SE-001 DB error: &quot; &amp; ex_Bed.Message]" />
+              <Throw Exception="[New Exception(&quot;SE-001: Database error during bed check: &quot; &amp; ex_Bed.Message, ex_Bed)]" />
+            </Sequence>
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <!-- Log result -->
+    <ui:LogMessage DisplayName="Log: Bed Result" Level="Info"
+      Message="[&quot;[CheckBed] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - BedStatus=&quot; &amp; v_BedStatus &amp; If(v_BedId &lt;&gt; &quot;&quot;, &quot; BedId=&quot; &amp; v_BedId, &quot;&quot;)]" />
+
+    <Assign DisplayName="Set out_BedStatus">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_BedStatus]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_BedStatus]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_AvailableBedId">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_AvailableBedId]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_BedId]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

@@ -1,0 +1,139 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_GenerateCaseStatus"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CaseId"            Type="InArgument(x:String)" />
+    <x:Property Name="in_PatientName"        Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredDept"       Type="InArgument(x:String)" />
+    <x:Property Name="in_BedId"             Type="InArgument(x:String)" />
+    <x:Property Name="in_BedStatus"         Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorId"      Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorStatus"  Type="InArgument(x:String)" />
+    <x:Property Name="in_BloodGroup"        Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredBloodUnits" Type="InArgument(x:Int32)" />
+    <x:Property Name="in_BloodStatus"       Type="InArgument(x:String)" />
+    <x:Property Name="in_DocSummary"        Type="InArgument(x:String)" />
+    <x:Property Name="in_DocumentStatus"    Type="InArgument(x:String)" />
+    <x:Property Name="in_ReadinessScore"    Type="InArgument(x:Int32)" />
+    <x:Property Name="in_FinalStatus"       Type="InArgument(x:String)" />
+    <x:Property Name="in_PendingAction"     Type="InArgument(x:String)" />
+    <x:Property Name="out_StatusReport"     Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Text</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="GenerateCaseStatus_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_GCS">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Report" />
+    </Sequence.Variables>
+
+    <ui:InvokeCode DisplayName="Build Status Report String">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+Dim sb As New System.Text.StringBuilder()
+Dim line As String = "=============================================="
+sb.AppendLine(line)
+sb.AppendLine(" EMERGENCY CASE STATUS REPORT")
+sb.AppendLine(line)
+sb.AppendLine(String.Format(" Case ID      : {0}", in_CaseId))
+sb.AppendLine(String.Format(" Patient      : {0}", in_PatientName))
+sb.AppendLine(String.Format(" Department   : {0}", in_RequiredDept))
+sb.AppendLine(String.Format(" Generated    : {0}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")))
+sb.AppendLine(line)
+sb.AppendLine("")
+sb.AppendLine(" RESOURCE STATUS")
+sb.AppendLine("----------------------------------------------")
+
+' Bed
+Dim bedDisplay As String = If(Not String.IsNullOrEmpty(in_BedId), in_BedId & " - " & in_BedStatus, in_BedStatus)
+sb.AppendLine(String.Format(" Bed          : {0}", bedDisplay))
+
+' Ventilator
+Dim ventDisplay As String
+If in_VentilatorStatus = "Not_Required" Then
+    ventDisplay = "Not Required"
+ElseIf in_VentilatorStatus = "Available" Then
+    ventDisplay = String.Format("{0} - Available", in_VentilatorId)
+Else
+    ventDisplay = in_VentilatorStatus
+End If
+sb.AppendLine(String.Format(" Ventilator   : {0}", ventDisplay))
+
+' Blood
+sb.AppendLine(String.Format(" Blood ({0})  : {1} required | Status: {2}",
+    in_BloodGroup, in_RequiredBloodUnits, in_BloodStatus))
+
+' Documents
+sb.AppendLine(String.Format(" Documents    : {0}", in_DocSummary))
+
+sb.AppendLine("")
+sb.AppendLine(" READINESS ASSESSMENT")
+sb.AppendLine("----------------------------------------------")
+sb.AppendLine(String.Format(" Readiness    : {0}%", in_ReadinessScore))
+sb.AppendLine(String.Format(" Status       : {0}", in_FinalStatus))
+
+If in_PendingAction <> "None" AndAlso Not String.IsNullOrEmpty(in_PendingAction) Then
+    sb.AppendLine(String.Format(" Pending      : {0}", in_PendingAction))
+End If
+
+sb.AppendLine("")
+sb.AppendLine(line)
+sb.AppendLine(" SCORING BREAKDOWN (Administrative Readiness Only)")
+sb.AppendLine(String.Format(" Documents    : {0}/25", If(in_DocumentStatus = "Complete", 25, 0)))
+sb.AppendLine(String.Format(" Bed          : {0}/25", If(in_BedStatus = "Available", 25, 0)))
+sb.AppendLine(String.Format(" Ventilator   : {0}/25", If(in_VentilatorStatus = "Available" Or in_VentilatorStatus = "Not_Required", 25, 0)))
+sb.AppendLine(String.Format(" Blood        : {0}/25", If(in_BloodStatus = "Available", 25, 0)))
+sb.AppendLine(line)
+sb.AppendLine(" NOTE: This is an administrative readiness score only.")
+sb.AppendLine(" All clinical decisions remain with authorised medical staff.")
+sb.AppendLine(line)
+
+v_Report = sb.ToString()
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_PatientName">[in_PatientName]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDept">[in_RequiredDept]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[in_BedId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[in_BedStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorId">[in_VentilatorId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[in_VentilatorStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BloodGroup">[in_BloodGroup]</InArgument>
+        <InArgument x:TypeArguments="x:Int32"  x:Key="in_RequiredBloodUnits">[in_RequiredBloodUnits]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[in_BloodStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DocSummary">[in_DocSummary]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DocumentStatus">[in_DocumentStatus]</InArgument>
+        <InArgument x:TypeArguments="x:Int32"  x:Key="in_ReadinessScore">[in_ReadinessScore]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_FinalStatus">[in_FinalStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[in_PendingAction]</InArgument>
+      
+        <OutArgument x:TypeArguments="x:String" x:Key="v_Report">[v_Report]</OutArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <ui:LogMessage DisplayName="Log: Status Generated" Level="Info"
+      Message="[&quot;[GenerateCaseStatus] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Status report generated (&quot; &amp; v_Report.Length &amp; &quot; chars)&quot;]" />
+
+    <Assign DisplayName="Set out_StatusReport">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_StatusReport]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Report]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

@@ -1,0 +1,113 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_UpdateDatabase"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CaseId"            Type="InArgument(x:String)" />
+    <x:Property Name="in_PatientId"         Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseStatus"        Type="InArgument(x:String)" />
+    <x:Property Name="in_DocumentStatus"    Type="InArgument(x:String)" />
+    <x:Property Name="in_BedStatus"         Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorStatus"  Type="InArgument(x:String)" />
+    <x:Property Name="in_BloodStatus"       Type="InArgument(x:String)" />
+    <x:Property Name="in_ReadinessScore"    Type="InArgument(x:Int32)" />
+    <x:Property Name="in_PendingAction"     Type="InArgument(x:String)" />
+    <x:Property Name="in_DBPath"            Type="InArgument(x:String)" />
+    <x:Property Name="in_IsNewCase"         Type="InArgument(x:Boolean)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="UpdateDatabase_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_UDB">
+    <TryCatch DisplayName="TryCatch: Update EMERGENCY_CASES">
+      <TryCatch.Try>
+                <ui:InvokeCode DisplayName="Upsert EMERGENCY_CASES Row">
+          <ui:InvokeCode.Code>
+            <![CDATA[
+Dim now As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+Dim pending As String = in_PendingAction.Replace("'", "''")
+Dim caseStatus As String = in_CaseStatus.Replace("'", "''")
+
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_updatedb_" & in_CaseId & ".py")
+Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
+
+Dim pyScript As New System.Text.StringBuilder()
+pyScript.AppendLine("import sqlite3")
+pyScript.AppendLine("conn = sqlite3.connect(r'" & dbPathSafe & "')")
+pyScript.AppendLine("now = '" & now & "'")
+
+If in_IsNewCase Then
+    pyScript.AppendLine("conn.execute(""INSERT OR IGNORE INTO EMERGENCY_CASES (CaseId,PatientId,CaseStatus,DocumentStatus,BedStatus,VentilatorStatus,BloodStatus,ReadinessPercentage,PendingAction,CreatedAt,UpdatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)"", (")
+    pyScript.AppendLine("    """ & in_CaseId & """, """ & in_PatientId & """, """ & caseStatus & """, """ & in_DocumentStatus & """,")
+    pyScript.AppendLine("    """ & in_BedStatus & """, """ & in_VentilatorStatus & """, """ & in_BloodStatus & """, " & in_ReadinessScore & ", """ & pending & """, now, now")
+    pyScript.AppendLine("))")
+Else
+    pyScript.AppendLine("conn.execute(""UPDATE EMERGENCY_CASES SET CaseStatus=?,DocumentStatus=?,BedStatus=?,VentilatorStatus=?,BloodStatus=?,ReadinessPercentage=?,PendingAction=?,UpdatedAt=? WHERE CaseId=?"", (")
+    pyScript.AppendLine("    """ & caseStatus & """, """ & in_DocumentStatus & """, """ & in_BedStatus & """, """ & in_VentilatorStatus & """,")
+    pyScript.AppendLine("    """ & in_BloodStatus & """, " & in_ReadinessScore & ", """ & pending & """, now, """ & in_CaseId & """)
+    pyScript.AppendLine("))")
+End If
+
+pyScript.AppendLine("conn.commit()")
+pyScript.AppendLine("conn.close()")
+System.IO.File.WriteAllText(pyFile, pyScript.ToString())
+
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+psi.UseShellExecute = False
+psi.CreateNoWindow = True
+psi.RedirectStandardError = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+Dim errOut As String = p.StandardError.ReadToEnd()
+p.WaitForExit(15000)
+If p.ExitCode <> 0 Then
+    Throw New Exception("[UpdateDatabase] Python error: " & errOut)
+End If
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+            ]]>
+          </ui:InvokeCode.Code>
+          <ui:InvokeCode.Arguments>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_CaseId">[in_CaseId]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_PatientId">[in_PatientId]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_CaseStatus">[in_CaseStatus]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_DocumentStatus">[in_DocumentStatus]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_BedStatus">[in_BedStatus]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_VentilatorStatus">[in_VentilatorStatus]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_BloodStatus">[in_BloodStatus]</InArgument>
+            <InArgument x:TypeArguments="x:Int32"   x:Key="in_ReadinessScore">[in_ReadinessScore]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_PendingAction">[in_PendingAction]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_DBPath">[in_DBPath]</InArgument>
+            <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[in_IsNewCase]</InArgument>
+          </ui:InvokeCode.Arguments>
+        </ui:InvokeCode>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_UDB" />
+            </ActivityAction.Argument>
+            <Throw Exception="[New Exception(&quot;SE-001: UpdateDatabase failed: &quot; &amp; ex_UDB.Message, ex_UDB)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:LogMessage DisplayName="Log: DB Updated" Level="Info"
+      Message="[&quot;[UpdateDatabase] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - EMERGENCY_CASES &quot; &amp; If(in_IsNewCase, &quot;INSERTED&quot;, &quot;UPDATED&quot;) &amp; &quot; Status=&quot; &amp; in_CaseStatus]" />
+  </Sequence>
+</Activity>

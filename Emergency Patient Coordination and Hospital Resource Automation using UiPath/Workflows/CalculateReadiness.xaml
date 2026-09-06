@@ -1,0 +1,124 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_CalculateReadiness"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DocumentStatus"   Type="InArgument(x:String)" />
+    <x:Property Name="in_BedStatus"        Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorStatus" Type="InArgument(x:String)" />
+    <x:Property Name="in_BloodStatus"      Type="InArgument(x:String)" />
+    <x:Property Name="out_ReadinessScore"  Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_FinalStatus"     Type="OutArgument(x:String)" />
+    <x:Property Name="out_PendingAction"   Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CalculateReadiness_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_CR">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:Int32"  Name="v_Score"        Default="0" />
+      <Variable x:TypeArguments="x:String" Name="v_FinalStatus"  Default="PENDING" />
+      <Variable x:TypeArguments="x:String" Name="v_PendingAction" Default="" />
+    </Sequence.Variables>
+
+    <ui:InvokeCode DisplayName="Calculate 4x25% Readiness Score">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+' Business Rule BR-05: Each component = 25 points
+Dim score As Integer = 0
+Dim pending As New List(Of String)()
+
+' Documents (25%)
+If in_DocumentStatus = "Complete" Then
+    score += 25
+Else
+    pending.Add("Complete document verification")
+End If
+
+' Bed (25%)
+If in_BedStatus = "Available" Or in_BedStatus = "Reserved" Then
+    score += 25
+Else
+    pending.Add("Locate available bed")
+End If
+
+' Ventilator (25%)  - Not_Required counts as full points
+If in_VentilatorStatus = "Available" Or in_VentilatorStatus = "Not_Required" Or in_VentilatorStatus = "Reserved" Then
+    score += 25
+Else
+    pending.Add("Locate available ventilator")
+End If
+
+' Blood (25%)
+If in_BloodStatus = "Available" Or in_BloodStatus = "Reserved" Then
+    score += 25
+Else
+    pending.Add("Secure blood inventory (" & in_BloodStatus & ")")
+End If
+
+' Determine final status (BR-06, BR-07)
+Dim finalStatus As String
+If score = 100 Then
+    finalStatus = "READY_FOR_APPROVAL"
+ElseIf in_BedStatus = "Unavailable" Then
+    finalStatus = "PENDING_BED"
+ElseIf in_VentilatorStatus = "Unavailable" Then
+    finalStatus = "PENDING_VENTILATOR"
+ElseIf in_BloodStatus = "Unavailable" Then
+    finalStatus = "PENDING_BLOOD"
+ElseIf in_DocumentStatus = "Incomplete" Then
+    finalStatus = "PENDING_DOCUMENTATION"
+Else
+    finalStatus = "PENDING"
+End If
+
+v_Score        = score
+v_FinalStatus  = finalStatus
+v_PendingAction = If(pending.Count > 0, String.Join("; ", pending.ToArray()), "None")
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DocumentStatus">[in_DocumentStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[in_BedStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[in_VentilatorStatus]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[in_BloodStatus]</InArgument>
+      
+        <OutArgument x:TypeArguments="x:Int32"  x:Key="v_Score">[v_Score]</OutArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="v_FinalStatus">[v_FinalStatus]</OutArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="v_PendingAction">[v_PendingAction]</OutArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <ui:LogMessage DisplayName="Log: Readiness Calculated" Level="Info"
+      Message="[&quot;[CalculateReadiness] Score=&quot; &amp; v_Score &amp; &quot;% FinalStatus=&quot; &amp; v_FinalStatus &amp; &quot; Pending: &quot; &amp; v_PendingAction]" />
+
+    <Assign DisplayName="Set out_ReadinessScore">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_ReadinessScore]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Score]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_FinalStatus">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_FinalStatus]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_FinalStatus]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_PendingAction">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_PendingAction]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_PendingAction]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

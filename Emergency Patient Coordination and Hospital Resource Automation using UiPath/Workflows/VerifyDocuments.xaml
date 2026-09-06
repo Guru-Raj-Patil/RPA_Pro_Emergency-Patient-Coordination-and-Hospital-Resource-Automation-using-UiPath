@@ -1,0 +1,168 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_VerifyDocuments"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_PatientId"        Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId"           Type="InArgument(x:String)" />
+    <x:Property Name="in_Config"           Type="InArgument(x:Object)" />
+    <x:Property Name="in_DBPath"           Type="InArgument(x:String)" />
+    <x:Property Name="out_DocumentStatus"  Type="OutArgument(x:String)" />
+    <x:Property Name="out_MissingDocuments" Type="OutArgument(x:Object)" />
+    <x:Property Name="out_DocSummary"      Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Collections.Generic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="VerifyDocuments_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_VD">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String"  Name="v_DocStatus"   Default="Complete" />
+      <Variable x:TypeArguments="x:Object"  Name="v_Missing" />
+      <Variable x:TypeArguments="x:String"  Name="v_Summary" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: Start Doc Verify" Level="Info"
+      Message="[&quot;[VerifyDocuments] CaseId=&quot; &amp; in_CaseId &amp; &quot; PatientId=&quot; &amp; in_PatientId &amp; &quot;  - Document verification started&quot;]" />
+
+    <TryCatch DisplayName="TryCatch: Document Verification">
+      <TryCatch.Try>
+        <ui:InvokeCode DisplayName="Check Document Folder and Files">
+          <ui:InvokeCode.Code>
+            <![CDATA[
+Dim cfg As Dictionary(Of String, String) = CType(in_Config, Dictionary(Of String, String))
+Dim projectRoot As String = cfg("ProjectRoot")
+Dim docRoot     As String = cfg("PatientDocumentRoot")  ' "Patients"
+Dim reqDocsStr  As String = cfg("RequiredDocuments")    ' "ID_Proof,Insurance,Consent_Form,Medical_Report"
+
+Dim patientFolder As String = System.IO.Path.Combine(projectRoot, docRoot, in_PatientId)
+Dim requiredDocs  As String() = reqDocsStr.Split(","c)
+Dim missingList   As New List(Of String)()
+Dim presentList   As New List(Of String)()
+
+' Check each required document type
+For Each docType As String In requiredDocs
+    Dim docTypeTrimmed As String = docType.Trim()
+    Dim found As Boolean = False
+    ' Check for file with various extensions
+    For Each ext As String In New String() {".pdf", ".jpg", ".png", ".docx", ".PDF"}
+        Dim filePath As String = System.IO.Path.Combine(patientFolder, docTypeTrimmed & ext)
+        If System.IO.File.Exists(filePath) Then
+            found = True
+            presentList.Add(docTypeTrimmed)
+            Exit For
+        End If
+    Next
+    If Not found Then missingList.Add(docTypeTrimmed)
+Next
+
+' Update DOCUMENTS table in DB via Python
+Dim timestamp As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+Dim updateSql As New System.Text.StringBuilder()
+updateSql.AppendLine("import sqlite3, datetime")
+updateSql.AppendLine(String.Format("conn=sqlite3.connect(r'{0}')", in_DBPath))
+updateSql.AppendLine("now=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')")
+
+For Each docType As String In requiredDocs
+    Dim docTypeTrimmed As String = docType.Trim()
+    Dim status As String = If(presentList.Contains(docTypeTrimmed), "Present", "Missing")
+    Dim filePath As String = If(status = "Present",
+        "Patients/" & in_PatientId & "/" & docTypeTrimmed & ".pdf", "")
+    Dim verifiedAt As String = If(status = "Present", "now", "None")
+    
+    updateSql.AppendLine(String.Format(
+        "conn.execute(""UPDATE DOCUMENTS SET VerificationStatus='{0}', FilePath='{1}', VerifiedAt={2} WHERE PatientId='{3}' AND DocumentType='{4}'"");",
+        status, filePath, verifiedAt, in_PatientId, docTypeTrimmed))
+Next
+updateSql.AppendLine("conn.commit();conn.close()")
+
+' Write and execute Python script
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_docupdate_" & in_PatientId & ".py")
+System.IO.File.WriteAllText(pyFile, updateSql.ToString())
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", pyFile)
+psi.UseShellExecute = False
+psi.CreateNoWindow  = True
+psi.RedirectStandardError = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+p.WaitForExit(15000)
+
+' Determine status
+Dim docStatus As String = If(missingList.Count = 0, "Complete", "Incomplete")
+Dim present   As Integer = presentList.Count
+Dim total     As Integer = requiredDocs.Length
+Dim summary   As String = String.Format("{0}/{1} documents present", present, total)
+If missingList.Count > 0 Then
+    summary &= ". Missing: " & String.Join(", ", missingList.ToArray())
+End If
+
+v_DocStatus = docStatus
+v_Missing   = missingList
+v_Summary   = summary
+            ]]>
+          </ui:InvokeCode.Code>
+          <ui:InvokeCode.Arguments>
+            <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[in_PatientId]</InArgument>
+            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+            <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[in_Config]</InArgument>
+            <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[in_DBPath]</InArgument>
+          
+            <OutArgument x:TypeArguments="x:String" x:Key="v_DocStatus">[v_DocStatus]</OutArgument>
+            <OutArgument x:TypeArguments="x:Object" x:Key="v_Missing">[v_Missing]</OutArgument>
+            <OutArgument x:TypeArguments="x:String" x:Key="v_Summary">[v_Summary]</OutArgument>
+          </ui:InvokeCode.Arguments>
+        </ui:InvokeCode>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Doc" />
+            </ActivityAction.Argument>
+            <Sequence>
+              <ui:LogMessage Level="Error"
+                Message="[&quot;[VerifyDocuments] SE-004 PatientFolder error: &quot; &amp; ex_Doc.Message]" />
+              <Assign>
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_DocStatus]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">["Error"]</InArgument></Assign.Value>
+              </Assign>
+            </Sequence>
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <!-- Log result -->
+    <ui:LogMessage DisplayName="Log: Doc Result" Level="Info"
+      Message="[&quot;[VerifyDocuments] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; v_Summary]" />
+
+    <!-- Set outputs -->
+    <Assign DisplayName="Set out_DocumentStatus">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_DocumentStatus]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_DocStatus]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_MissingDocuments">
+      <Assign.To><OutArgument x:TypeArguments="x:Object">[out_MissingDocuments]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Object">[v_Missing]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_DocSummary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_DocSummary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

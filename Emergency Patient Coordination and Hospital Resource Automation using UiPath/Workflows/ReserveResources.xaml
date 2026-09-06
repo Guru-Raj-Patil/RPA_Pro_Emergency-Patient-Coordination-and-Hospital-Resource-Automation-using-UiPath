@@ -1,0 +1,190 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Workflows_ReserveResources"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CaseId"             Type="InArgument(x:String)" />
+    <x:Property Name="in_BedId"              Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorId"       Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorRequired" Type="InArgument(x:Boolean)" />
+    <x:Property Name="in_BloodGroup"         Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredBloodUnits" Type="InArgument(x:Int32)" />
+    <x:Property Name="in_DBPath"             Type="InArgument(x:String)" />
+    <x:Property Name="out_ReservationSuccess" Type="OutArgument(x:Boolean)" />
+    <x:Property Name="out_FailureReason"     Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="ReserveResources_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_RR">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:Boolean" Name="v_Success"       Default="False" />
+      <Variable x:TypeArguments="x:String"  Name="v_FailureReason" Default="" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: Starting Reservation" Level="Info"
+      Message="[&quot;[ReserveResources] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Starting transactional resource reservation&quot;]" />
+
+    <TryCatch DisplayName="TryCatch: Transactional Reservation">
+      <TryCatch.Try>
+        <ui:InvokeCode DisplayName="Execute Transactional Reservation">
+          <ui:InvokeCode.Code>
+            <![CDATA[
+' Build a Python script that executes the full reservation as a single SQLite transaction
+' with proper rollback on any failure (Business Rule BR-10)
+Dim now As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+Dim ventRequired As String = If(in_VentilatorRequired, "True", "False")
+Dim ventId As String = If(String.IsNullOrEmpty(in_VentilatorId), "", in_VentilatorId)
+
+Dim pyScript As New System.Text.StringBuilder()
+pyScript.AppendLine("import sqlite3, sys, datetime")
+pyScript.AppendLine("now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')")
+pyScript.AppendLine(String.Format("conn = sqlite3.connect(r'{0}')", in_DBPath))
+pyScript.AppendLine("conn.execute('PRAGMA foreign_keys=ON')")
+pyScript.AppendLine("try:")
+pyScript.AppendLine("    conn.execute('BEGIN EXCLUSIVE')")
+
+' Step 1: Reserve Bed
+pyScript.AppendLine(String.Format(
+    "    # Step 1: Reserve bed {0}",
+    in_BedId))
+pyScript.AppendLine(String.Format(
+    "    r = conn.execute(""SELECT Status FROM BEDS WHERE BedId='{0}'"").fetchone()",
+    in_BedId))
+pyScript.AppendLine("    if not r or r[0] != 'Available': raise Exception('Bed ' + r[0] if r else 'Bed not found' + ' - no longer available')")
+pyScript.AppendLine(String.Format(
+    "    conn.execute(""UPDATE BEDS SET Status='Reserved', LastUpdated=now WHERE BedId='{0}'"")".Replace("now", "'" & now & "'"),
+    in_BedId))
+pyScript.AppendLine(String.Format(
+    "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Bed','{1}',1,'Reserved','{2}')"")".Replace("'{2}'", "'" & now & "'"),
+    in_CaseId, in_BedId))
+
+' Step 2: Reserve Ventilator (if required)
+If in_VentilatorRequired AndAlso Not String.IsNullOrEmpty(in_VentilatorId) Then
+    pyScript.AppendLine(String.Format("    # Step 2: Reserve ventilator {0}", in_VentilatorId))
+    pyScript.AppendLine(String.Format(
+        "    r2 = conn.execute(""SELECT Status FROM VENTILATORS WHERE VentilatorId='{0}'"").fetchone()",
+        in_VentilatorId))
+    pyScript.AppendLine("    if not r2 or r2[0] != 'Available': raise Exception('Ventilator no longer available')")
+    pyScript.AppendLine(String.Format(
+        "    conn.execute(""UPDATE VENTILATORS SET Status='Reserved', LastUpdated='{0}' WHERE VentilatorId='{1}'"")".Replace("'{1}'", "'" & in_VentilatorId & "'"),
+        now))
+    pyScript.AppendLine(String.Format(
+        "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Ventilator','{1}',1,'Reserved','{2}')"")".Replace("'{2}'", "'" & now & "'"),
+        in_CaseId, in_VentilatorId))
+End If
+
+' Step 3: Reserve Blood
+pyScript.AppendLine(String.Format("    # Step 3: Reserve {0} units of {1} blood", in_RequiredBloodUnits, in_BloodGroup))
+pyScript.AppendLine(String.Format(
+    "    r3 = conn.execute(""SELECT AvailableUnits FROM BLOOD_INVENTORY WHERE BloodGroup='{0}'"").fetchone()",
+    in_BloodGroup))
+pyScript.AppendLine(String.Format("    if not r3 or r3[0] < {0}: raise Exception('Insufficient blood: available=' + str(r3[0] if r3 else 0))", in_RequiredBloodUnits))
+pyScript.AppendLine(String.Format(
+    "    conn.execute(""UPDATE BLOOD_INVENTORY SET AvailableUnits=AvailableUnits-{0}, LastUpdated='{1}' WHERE BloodGroup='{2}'"")".Replace("'{2}'", "'" & in_BloodGroup & "'"),
+    in_RequiredBloodUnits, now))
+pyScript.AppendLine(String.Format(
+    "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Blood','{1}',{2},'Reserved','{3}')"")".Replace("'{3}'", "'" & now & "'"),
+    in_CaseId, in_BloodGroup, in_RequiredBloodUnits))
+
+' Commit
+pyScript.AppendLine("    conn.commit()")
+pyScript.AppendLine("    print('SUCCESS')")
+pyScript.AppendLine("except Exception as e:")
+pyScript.AppendLine("    conn.rollback()")
+pyScript.AppendLine("    print('FAILED:' + str(e))")
+pyScript.AppendLine("finally:")
+pyScript.AppendLine("    conn.close()")
+
+' Write and execute Python script
+Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+    "uipath_reserve_" & in_CaseId & ".py")
+System.IO.File.WriteAllText(pyFile, pyScript.ToString())
+
+Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
+psi.UseShellExecute = False
+psi.CreateNoWindow  = True
+psi.RedirectStandardOutput = True
+psi.RedirectStandardError  = True
+Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
+Dim stdOut As String = p.StandardOutput.ReadToEnd().Trim()
+Dim stdErr As String = p.StandardError.ReadToEnd().Trim()
+p.WaitForExit(30000)
+
+If stdOut.StartsWith("SUCCESS") Then
+    v_Success       = True
+    v_FailureReason = ""
+Else
+    v_Success       = False
+    v_FailureReason = If(stdOut.StartsWith("FAILED:"), stdOut.Substring(7), "Unknown reservation error: " & stdErr)
+End If
+
+' Cleanup temp file
+Try : System.IO.File.Delete(pyFile) : Catch : End Try
+            ]]>
+          </ui:InvokeCode.Code>
+          <ui:InvokeCode.Arguments>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_CaseId">[in_CaseId]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_BedId">[in_BedId]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_VentilatorId">[in_VentilatorId]</InArgument>
+            <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[in_VentilatorRequired]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_BloodGroup">[in_BloodGroup]</InArgument>
+            <InArgument x:TypeArguments="x:Int32"   x:Key="in_RequiredBloodUnits">[in_RequiredBloodUnits]</InArgument>
+            <InArgument x:TypeArguments="x:String"  x:Key="in_DBPath">[in_DBPath]</InArgument>
+          
+            <OutArgument x:TypeArguments="x:Boolean" x:Key="v_Success">[v_Success]</OutArgument>
+            <OutArgument x:TypeArguments="x:String"  x:Key="v_FailureReason">[v_FailureReason]</OutArgument>
+          </ui:InvokeCode.Arguments>
+        </ui:InvokeCode>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Reserve" />
+            </ActivityAction.Argument>
+            <Sequence>
+              <ui:LogMessage Level="Error"
+                Message="[&quot;[ReserveResources] SE-001 Reservation exception for CaseId=&quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_Reserve.Message]" />
+              <Assign>
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Success]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Boolean">[False]</InArgument></Assign.Value>
+              </Assign>
+              <Assign>
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_FailureReason]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">["SE-001: " &amp; ex_Reserve.Message]</InArgument></Assign.Value>
+              </Assign>
+            </Sequence>
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:LogMessage DisplayName="Log: Reservation Result" Level="Info"
+      Message="[&quot;[ReserveResources] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Success=&quot; &amp; v_Success &amp; If(Not v_Success, &quot; Reason=&quot; &amp; v_FailureReason, &quot;&quot;)]" />
+
+    <Assign DisplayName="Set out_ReservationSuccess">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_ReservationSuccess]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Success]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Set out_FailureReason">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_FailureReason]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_FailureReason]</InArgument></Assign.Value>
+    </Assign>
+  </Sequence>
+</Activity>

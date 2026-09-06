@@ -1,0 +1,135 @@
+<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
+  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  mc:Ignorable="sap sap2010" x:Class="Framework_GetConfig"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="out_Config" Type="OutArgument(x:Object)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Data</x:String>
+      <x:String>System.Linq</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Data</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="GetConfig_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Default="" Name="v_ConfigPath" />
+      <Variable x:TypeArguments="x:String" Name="v_ProjectRoot" />
+      <Variable x:TypeArguments="x:Object" Name="v_ConfigDict" />
+    </Sequence.Variables>
+
+    <!-- Step 1: Resolve project root and config path -->
+    <ui:InvokeCode DisplayName="Resolve Config Path">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+Dim exePath As String = System.AppDomain.CurrentDomain.BaseDirectory
+Dim projRoot As String = exePath
+' Walk up to find project.json
+Dim current As String = exePath
+Dim maxLevels As Integer = 8
+For i As Integer = 0 To maxLevels - 1
+    If System.IO.File.Exists(System.IO.Path.Combine(current, "project.json")) Then
+        projRoot = current
+        Exit For
+    End If
+    Dim parent As System.IO.DirectoryInfo = System.IO.Directory.GetParent(current)
+    If parent Is Nothing Then Exit For
+    current = parent.FullName
+Next
+v_ProjectRoot = projRoot
+v_ConfigPath  = System.IO.Path.Combine(projRoot, "Data", "Config.xlsx")
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+      
+        <OutArgument x:TypeArguments="x:String" x:Key="v_ProjectRoot">[v_ProjectRoot]</OutArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="v_ConfigPath">[v_ConfigPath]</OutArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <ui:LogMessage DisplayName="Log: Reading Config" Level="Info"
+      Message="[&quot;[GetConfig] Reading configuration from: &quot; &amp; v_ConfigPath]" />
+
+    <!-- Step 2: Validate Config.xlsx exists -->
+    <If DisplayName="Check Config File Exists" Condition="[Not System.IO.File.Exists(v_ConfigPath)]">
+      <If.Then>
+        <Throw DisplayName="Throw: Config File Missing"
+          Exception="[New System.IO.FileNotFoundException(&quot;Config.xlsx not found at: &quot; &amp; v_ConfigPath)]" />
+      </If.Then>
+    </If>
+
+    <!-- Step 3: Read Config.xlsx using Invoke Code (reads CSV-style via file reading or Excel COM) -->
+    <ui:InvokeCode DisplayName="Read Config.xlsx into Dictionary">
+      <ui:InvokeCode.Code>
+        <![CDATA[
+' Read Config.xlsx using Excel Interop (available since Excel is installed)
+Dim config As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+Try
+    Dim xlApp As Object = CreateObject("Excel.Application")
+    xlApp.Visible = False
+    xlApp.DisplayAlerts = False
+    Dim wb As Object = xlApp.Workbooks.Open(v_ConfigPath)
+    Dim ws As Object = wb.Sheets("Settings")
+    Dim lastRow As Integer = ws.Cells(ws.Rows.Count, 1).End(-4162).Row ' xlUp = -4162
+    For r As Integer = 2 To lastRow
+        Dim key As String   = CStr(ws.Cells(r, 1).Value2)
+        Dim value As String = If(ws.Cells(r, 2).Value2 IsNot Nothing, CStr(ws.Cells(r, 2).Value2), "")
+        If Not String.IsNullOrWhiteSpace(key) Then
+            config(key.Trim()) = value.Trim()
+        End If
+    Next
+    wb.Close(False)
+    xlApp.Quit()
+    System.Runtime.InteropServices.Marshal.ReleaseComObject(xlApp)
+Catch ex As Exception
+    Throw New Exception("[GetConfig] Failed to read Config.xlsx: " & ex.Message, ex)
+End Try
+
+' Inject ProjectRoot into config so all workflows can use it
+config("ProjectRoot") = v_ProjectRoot
+
+v_ConfigDict = config
+        ]]>
+      </ui:InvokeCode.Code>
+      <ui:InvokeCode.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="v_ConfigPath">[v_ConfigPath]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="v_ProjectRoot">[v_ProjectRoot]</InArgument>
+      
+        <OutArgument x:TypeArguments="x:Object" x:Key="v_ConfigDict">[v_ConfigDict]</OutArgument>
+      </ui:InvokeCode.Arguments>
+    </ui:InvokeCode>
+
+    <!-- Step 4: Assign output argument -->
+    <Assign DisplayName="Set out_Config">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:Object">[out_Config]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:Object">[v_ConfigDict]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: Config Loaded"
+      Level="Info"
+      Message="[&quot;[GetConfig] Configuration loaded. Keys: &quot; &amp; CType(v_ConfigDict, Dictionary(Of String,String)).Count]" />
+  </Sequence>
+</Activity>
