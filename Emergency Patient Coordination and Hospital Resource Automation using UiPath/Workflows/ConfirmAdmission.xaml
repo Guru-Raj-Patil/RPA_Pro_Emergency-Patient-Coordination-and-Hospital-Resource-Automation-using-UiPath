@@ -1,0 +1,141 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_ConfirmAdmission"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_PatientId" Type="InArgument(x:String)" />
+    <x:Property Name="in_BedId" Type="InArgument(x:String)" />
+    <x:Property Name="in_AttendingDoctorId" Type="InArgument(x:String)" />
+    <x:Property Name="in_EmergencyType" Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorId" Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorReserved" Type="InArgument(x:Boolean)" />
+    <x:Property Name="out_AdmissionId" Type="OutArgument(x:String)" />
+    <x:Property Name="out_AdmissionSummary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="ConfirmAdmission" sap2010:WorkflowViewState.IdRef="Sequence_CA">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Beds" />
+      <Variable x:TypeArguments="x:String" Name="v_Vents" />
+      <Variable x:TypeArguments="x:String" Name="v_BedType" />
+      <Variable x:TypeArguments="x:Int32" Name="v_BedRate" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Stay" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmId" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: admission start" Level="Info"
+      Message="[&quot;[ConfirmAdmission] &quot; &amp; in_CaseId &amp; &quot;  - bed &quot; &amp; in_BedId &amp; &quot; attending &quot; &amp; in_AttendingDoctorId]" />
+
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Read BEDS.psv">
+      <TryCatch.Try>
+        <ui:ReadTextFile DisplayName="Read BEDS.psv"
+          FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_A" />
+            </ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-004"
+              Exception="[New Exception(&quot;SE-004: Admission bed read error: &quot; &amp; ex_A.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Bed type">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_BedType]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(0).Trim() = in_BedId.Trim()).Select(Function(a) a(2).Trim()).DefaultIfEmpty("Standard").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Bed day rate (INR)">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_BedRate]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[If(v_BedType.Trim().ToUpper() = "PREMIUM", 8000, 4000)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Expected stay (days) by emergency type">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Stay]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[If(in_EmergencyType.Trim().ToUpper() = "CRITICAL", 7, If(in_EmergencyType.Trim().ToUpper() = "URGENT", 4, 3))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Admission id">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_AdmId]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["ADM-" &amp; in_CaseId]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:AppendLine DisplayName="Append ADMISSIONS row"
+      FileName="[System.IO.Path.Combine(in_DbFolder, &quot;ADMISSIONS.psv&quot;)]"
+      Text="[String.Join(&quot;|&quot;, New String() {v_AdmId, in_CaseId, in_PatientId, in_BedId, in_AttendingDoctorId, v_Now, v_Stay.ToString(), &quot;Admitted&quot;, &quot;&quot;})]" />
+
+    <Assign DisplayName="Bed Reserved -&gt; Occupied">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Beds]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_BedId.Trim() &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "Occupied", l.Trim().Split("|"c)(4), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Write BEDS.psv"
+      FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Text="[v_Beds]" />
+
+    <If DisplayName="Ventilator to occupy?" Condition="[in_VentilatorReserved AndAlso in_VentilatorId &lt;&gt; &quot;&quot; AndAlso in_VentilatorId &lt;&gt; &quot;N/A&quot;]">
+      <If.Then>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read VENTILATORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Content="[v_Vents]" />
+          <Assign DisplayName="Ventilator Reserved -&gt; Occupied">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Vents]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Vents.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_VentilatorId.Trim() &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), "Occupied", l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+          </Assign>
+          <ui:WriteTextFile DisplayName="Write VENTILATORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Text="[v_Vents]" />
+        </Sequence>
+      </If.Then>
+    </If>
+
+    <ui:AppendLine DisplayName="Billing: registration"
+      FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BILLING.psv&quot;)]"
+      Text="[String.Join(&quot;|&quot;, New String() {&quot;BIL-&quot; &amp; in_CaseId &amp; &quot;-REG&quot;, in_CaseId, &quot;Registration&quot;, &quot;Emergency admission registration&quot;, &quot;1&quot;, &quot;500&quot;, &quot;500&quot;, v_Now})]" />
+    <ui:AppendLine DisplayName="Billing: bed day 1"
+      FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BILLING.psv&quot;)]"
+      Text="[String.Join(&quot;|&quot;, New String() {&quot;BIL-&quot; &amp; in_CaseId &amp; &quot;-BED1&quot;, in_CaseId, &quot;BedDay&quot;, &quot;Bed &quot; &amp; in_BedId &amp; &quot; (&quot; &amp; v_BedType &amp; &quot;) - day 1&quot;, &quot;1&quot;, v_BedRate.ToString(), v_BedRate.ToString(), v_Now})]" />
+
+    <Assign DisplayName="out_AdmissionId">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_AdmissionId]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_AdmId]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_AdmissionSummary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_AdmissionSummary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["Admitted to bed " &amp; in_BedId &amp; " (" &amp; v_BedType &amp; ") under " &amp; in_AttendingDoctorId &amp; "; expected stay " &amp; v_Stay.ToString() &amp; "d; billing account opened (registration 500 + bed day-1 " &amp; v_BedRate.ToString() &amp; " INR)"]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: admission done" Level="Info"
+      Message="[&quot;[ConfirmAdmission] &quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; v_AdmId &amp; &quot;: &quot; &amp; out_AdmissionSummary]" />
+  </Sequence>
+</Activity>

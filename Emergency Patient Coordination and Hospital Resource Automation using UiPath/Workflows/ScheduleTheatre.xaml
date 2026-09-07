@@ -1,0 +1,162 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_ScheduleTheatre"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredDepartment" Type="InArgument(x:String)" />
+    <x:Property Name="out_TheatreId" Type="OutArgument(x:String)" />
+    <x:Property Name="out_OtSlotId" Type="OutArgument(x:String)" />
+    <x:Property Name="out_TheatreStatus" Type="OutArgument(x:String)" />
+    <x:Property Name="out_TheatreSummary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="ScheduleTheatre" sap2010:WorkflowViewState.IdRef="Sequence_ST">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_DeptRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_OtRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_DaRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_DeptId" />
+      <Variable x:TypeArguments="x:String" Name="v_DeptType" />
+      <Variable x:TypeArguments="x:String" Name="v_SurgId" />
+      <Variable x:TypeArguments="x:String" Name="v_AnaesId" />
+      <Variable x:TypeArguments="x:String" Name="v_Pick" />
+      <Variable x:TypeArguments="x:String" Name="v_SlotId" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_NewOt" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: theatre start" Level="Info"
+      Message="[&quot;[ScheduleTheatre] &quot; &amp; in_CaseId &amp; &quot;  - department &quot; &amp; in_RequiredDepartment]" />
+
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Read theatre reference tables">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read DEPARTMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DEPARTMENTS.psv&quot;)]" Content="[v_DeptRaw]" />
+          <ui:ReadTextFile DisplayName="Read OPERATING_THEATRES.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OPERATING_THEATRES.psv&quot;)]" Content="[v_OtRaw]" />
+          <ui:ReadTextFile DisplayName="Read DOCTOR_ASSIGNMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]" Content="[v_DaRaw]" />
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_T" />
+            </ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-003"
+              Exception="[New Exception(&quot;SE-003: Theatre reference read error: &quot; &amp; ex_T.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Resolve department id">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DeptId]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_DeptRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(1).Trim().ToUpper() = in_RequiredDepartment.Trim().ToUpper()).Select(Function(a) a(0).Trim()).DefaultIfEmpty("").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Resolve department type">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DeptType]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_DeptRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(0).Trim() = v_DeptId).Select(Function(a) a(2).Trim()).DefaultIfEmpty("Medical").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <If DisplayName="Surgical department?" Condition="[v_DeptType.Trim().ToUpper() &lt;&gt; &quot;SURGICAL&quot;]">
+      <If.Then>
+        <Sequence DisplayName="No theatre required">
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreStatus]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["Not_Required"]</InArgument></Assign.Value></Assign>
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["N/A"]</InArgument></Assign.Value></Assign>
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_OtSlotId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["N/A"]</InArgument></Assign.Value></Assign>
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreSummary]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["No operating theatre required (" &amp; in_RequiredDepartment &amp; " is a non-surgical department)"]</InArgument></Assign.Value></Assign>
+        </Sequence>
+      </If.Then>
+      <If.Else>
+        <Sequence DisplayName="Book a theatre">
+          <Assign DisplayName="Surgeon id from assignments">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_SurgId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_DaRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 4 AndAlso a(1).Trim() = in_CaseId AndAlso a(3).Trim() = "Surgeon").Select(Function(a) a(2).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Anaesthetist id from assignments">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_AnaesId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_DaRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 4 AndAlso a(1).Trim() = in_CaseId AndAlso a(3).Trim() = "Anaesthetist").Select(Function(a) a(2).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Pick theatre (dept-specific Available, else ANY Available)">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Pick]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_OtRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 4 AndAlso l.Split("|"c)(3).Trim() = "Available" AndAlso l.Split("|"c)(2).Trim() = v_DeptId).Concat(v_OtRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 4 AndAlso l.Split("|"c)(3).Trim() = "Available" AndAlso l.Split("|"c)(2).Trim() = "ANY")).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+          </Assign>
+
+          <If DisplayName="Theatre available?" Condition="[String.IsNullOrEmpty(v_Pick)]">
+            <If.Then>
+              <Sequence DisplayName="No theatre free">
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreStatus]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["Unavailable"]</InArgument></Assign.Value></Assign>
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value></Assign>
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_OtSlotId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value></Assign>
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreSummary]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["No operating theatre available for " &amp; in_RequiredDepartment &amp; " (all in use / maintenance)"]</InArgument></Assign.Value></Assign>
+              </Sequence>
+            </If.Then>
+            <If.Else>
+              <Sequence DisplayName="Reserve the theatre slot">
+                <Assign DisplayName="Theatre id">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreId]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[v_Pick.Split("|"c)(0).Trim()]</InArgument></Assign.Value>
+                </Assign>
+                <Assign DisplayName="Slot id">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_SlotId]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">["OT-" &amp; in_CaseId]</InArgument></Assign.Value>
+                </Assign>
+                <Assign DisplayName="Mark theatre InUse">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_NewOt]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[v_OtRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).First().Trim() &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_OtRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) If(l.Trim().Split("|"c)(0).Trim() = out_TheatreId, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "InUse", v_Now}), l.Trim())))]</InArgument></Assign.Value>
+                </Assign>
+                <ui:WriteTextFile DisplayName="Write OPERATING_THEATRES.psv"
+                  FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OPERATING_THEATRES.psv&quot;)]" Text="[v_NewOt]" />
+                <ui:AppendLine DisplayName="Append OT_SCHEDULE row"
+                  FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OT_SCHEDULE.psv&quot;)]"
+                  Text="[String.Join(&quot;|&quot;, New String() {v_SlotId, out_TheatreId, in_CaseId, v_SurgId, v_AnaesId, v_Now, DateTime.Now.AddHours(3).ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;), &quot;Booked&quot;})]" />
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_OtSlotId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_SlotId]</InArgument></Assign.Value></Assign>
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreStatus]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["Booked"]</InArgument></Assign.Value></Assign>
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_TheatreSummary]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["Theatre " &amp; out_TheatreId &amp; " booked (slot " &amp; v_SlotId &amp; "), surgeon " &amp; If(v_SurgId = "", "attending", v_SurgId) &amp; ", anaesthetist " &amp; If(v_AnaesId = "", "PENDING", v_AnaesId)]</InArgument></Assign.Value></Assign>
+              </Sequence>
+            </If.Else>
+          </If>
+        </Sequence>
+      </If.Else>
+    </If>
+
+    <ui:LogMessage DisplayName="Log: theatre result" Level="Info"
+      Message="[&quot;[ScheduleTheatre] &quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; out_TheatreStatus &amp; &quot;: &quot; &amp; out_TheatreSummary]" />
+  </Sequence>
+</Activity>

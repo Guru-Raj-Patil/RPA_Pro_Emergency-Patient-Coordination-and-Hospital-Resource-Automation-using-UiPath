@@ -1,0 +1,9 @@
+PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|VentilatorRequired|BloodGroup|BloodUnits|ProcessStatus|CaseId|Notes
+P1024|Rahul Kumar|54|Male|Critical|ICU|Yes|O-|4|Pending||T1: Success scenario
+P1025|Ananya Singh|32|Female|Urgent|ICU|No|A+|2|Pending||T2: Missing Medical Report
+P1026|Mohan Das|67|Male|Critical|ICU|Yes|B+|3|Pending||T3: Run TestSetup_T3 first
+P1027|Priya Sharma|45|Female|Critical|ICU|Yes|AB+|2|Pending||T4: Run TestSetup_T4 first
+P1028|Arun Mehta|29|Male|Critical|ICU|Yes|O-|10|Pending||T5: Insufficient blood O-
+P1029|Kavitha Nair|38|Female|Standard|General|No|B-|2|Pending||T6: Batch scenario
+P1030|Suresh Patel|61|Male|Urgent|General|No|A-|1|Pending||T6: Batch scenario
+P1031|Deepa Reddy|55|Female|Critical|Cardiology|No|AB-|1|Pending||T6: Batch scenario

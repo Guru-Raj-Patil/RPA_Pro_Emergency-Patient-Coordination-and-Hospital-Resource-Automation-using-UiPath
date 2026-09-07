@@ -1,0 +1,7 @@
+TheatreId|Name|DepartmentAffinity|Status|LastUpdated
+OT-1|Cardiac OT|DEPT-CTVS|Available|2026-09-06 10:44:11
+OT-2|Neuro OT|DEPT-NSURG|Available|2026-09-06 10:44:11
+OT-3|Orthopaedic OT|DEPT-ORTHO|Available|2026-09-06 10:44:11
+OT-4|Trauma / Emergency OT|DEPT-TRAUMA|Available|2026-09-06 10:44:11
+OT-5|General Surgery OT|DEPT-GSURG|InUse|2026-09-06 10:44:11
+OT-6|Hybrid OT (multi-specialty)|ANY|Available|2026-09-06 10:44:11

@@ -1,0 +1,246 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_AssignCareTeam"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_RequiredDepartment" Type="InArgument(x:String)" />
+    <x:Property Name="out_AttendingDoctorId" Type="OutArgument(x:String)" />
+    <x:Property Name="out_AttendingDoctorName" Type="OutArgument(x:String)" />
+    <x:Property Name="out_CareTeamStatus" Type="OutArgument(x:String)" />
+    <x:Property Name="out_CareTeamSummary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="AssignCareTeam" sap2010:WorkflowViewState.IdRef="Sequence_ACT">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_DeptRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_DocRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_DeptId" />
+      <Variable x:TypeArguments="x:String" Name="v_DeptType" />
+      <Variable x:TypeArguments="x:String" Name="v_AttLine" />
+      <Variable x:TypeArguments="x:String" Name="v_AttId" />
+      <Variable x:TypeArguments="x:String" Name="v_AttName" />
+      <Variable x:TypeArguments="x:String" Name="v_AttSpec" />
+      <Variable x:TypeArguments="x:String" Name="v_SurgLine" />
+      <Variable x:TypeArguments="x:String" Name="v_AnaesLine" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_AssignedIds" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Summary" />
+      <Variable x:TypeArguments="x:String" Name="v_NewDoc" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: care-team start" Level="Info"
+      Message="[&quot;[AssignCareTeam] &quot; &amp; in_CaseId &amp; &quot;  - department &quot; &amp; in_RequiredDepartment]" />
+
+    <Assign DisplayName="Timestamp">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Read DEPARTMENTS.psv and DOCTORS.psv">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read DEPARTMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DEPARTMENTS.psv&quot;)]" Content="[v_DeptRaw]" />
+          <ui:ReadTextFile DisplayName="Read DOCTORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTORS.psv&quot;)]" Content="[v_DocRaw]" />
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_R" />
+            </ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-002"
+              Exception="[New Exception(&quot;SE-002: Care-team reference read error: &quot; &amp; ex_R.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Resolve department id">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DeptId]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_DeptRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(1).Trim().ToUpper() = in_RequiredDepartment.Trim().ToUpper()).Select(Function(a) a(0).Trim()).DefaultIfEmpty("").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Resolve department type">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DeptType]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_DeptRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(0).Trim() = v_DeptId).Select(Function(a) a(2).Trim()).DefaultIfEmpty("Medical").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Pick attending consultant (on-call, lowest load)">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_AttLine]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_DocRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 11 AndAlso l.Split("|"c)(2).Trim() = v_DeptId AndAlso l.Split("|"c)(6).Trim() = "OnCall" AndAlso CInt(l.Split("|"c)(9).Trim()) &lt; CInt(l.Split("|"c)(10).Trim())).OrderBy(Function(l) CInt(l.Split("|"c)(9).Trim())).DefaultIfEmpty("").First()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <If DisplayName="Attending available?" Condition="[String.IsNullOrEmpty(v_AttLine)]">
+      <If.Then>
+        <Sequence DisplayName="No consultant on call">
+          <Assign DisplayName="out: unavailable">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_CareTeamStatus]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["Unavailable"]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: attending id empty">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_AttendingDoctorId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: attending name empty">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_AttendingDoctorName]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: summary">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_CareTeamSummary]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["No on-call " &amp; in_RequiredDepartment &amp; " consultant available (all off-duty or at capacity)"]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Then>
+      <If.Else>
+        <Sequence DisplayName="Assign the care team">
+          <Assign DisplayName="Attending id">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_AttId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_AttLine.Split("|"c)(0).Trim()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Attending name">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_AttName]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_AttLine.Split("|"c)(1).Trim()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Attending specialty">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_AttSpec]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_AttLine.Split("|"c)(4).Trim()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Start assigned-id list">
+            <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_AssignedIds]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[New List(Of String) From {v_AttId}]</InArgument></Assign.Value>
+          </Assign>
+          <ui:AppendLine DisplayName="Append DOCTOR_ASSIGNMENTS: Attending"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]"
+            Text="[String.Join(&quot;|&quot;, New String() {&quot;DA-&quot; &amp; in_CaseId &amp; &quot;-ATT&quot;, in_CaseId, v_AttId, &quot;Attending&quot;, v_AttSpec, v_Now, &quot;Assigned&quot;})]" />
+          <Assign DisplayName="Summary base">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Summary]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["Attending: " &amp; v_AttName &amp; " (" &amp; v_AttSpec &amp; ") [" &amp; v_AttId &amp; "]"]</InArgument></Assign.Value>
+          </Assign>
+
+          <If DisplayName="Surgical department?" Condition="[v_DeptType.Trim().ToUpper() = &quot;SURGICAL&quot;]">
+            <If.Then>
+              <Sequence DisplayName="Assign surgeon and anaesthetist">
+                <Assign DisplayName="Pick surgeon (on-call, not the attending)">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_SurgLine]</OutArgument></Assign.To>
+                  <Assign.Value>
+                    <InArgument x:TypeArguments="x:String">[v_DocRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 11 AndAlso l.Split("|"c)(2).Trim() = v_DeptId AndAlso l.Split("|"c)(5).Trim() = "1" AndAlso l.Split("|"c)(6).Trim() = "OnCall" AndAlso l.Split("|"c)(0).Trim() &lt;&gt; v_AttId AndAlso CInt(l.Split("|"c)(9).Trim()) &lt; CInt(l.Split("|"c)(10).Trim())).OrderBy(Function(l) CInt(l.Split("|"c)(9).Trim())).DefaultIfEmpty("").First()]</InArgument>
+                  </Assign.Value>
+                </Assign>
+                <Assign DisplayName="Pick anaesthetist (DEPT-ANAES, on-call)">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_AnaesLine]</OutArgument></Assign.To>
+                  <Assign.Value>
+                    <InArgument x:TypeArguments="x:String">[v_DocRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 11 AndAlso l.Split("|"c)(2).Trim() = "DEPT-ANAES" AndAlso l.Split("|"c)(6).Trim() = "OnCall" AndAlso CInt(l.Split("|"c)(9).Trim()) &lt; CInt(l.Split("|"c)(10).Trim())).OrderBy(Function(l) CInt(l.Split("|"c)(9).Trim())).DefaultIfEmpty("").First()]</InArgument>
+                  </Assign.Value>
+                </Assign>
+                <If DisplayName="Surgeon found?" Condition="[Not String.IsNullOrEmpty(v_SurgLine)]">
+                  <If.Then>
+                    <Sequence>
+                      <ui:AppendLine DisplayName="Append DOCTOR_ASSIGNMENTS: Surgeon"
+                        FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]"
+                        Text="[String.Join(&quot;|&quot;, New String() {&quot;DA-&quot; &amp; in_CaseId &amp; &quot;-SUR&quot;, in_CaseId, v_SurgLine.Split(&quot;|&quot;c)(0).Trim(), &quot;Surgeon&quot;, v_SurgLine.Split(&quot;|&quot;c)(4).Trim(), v_Now, &quot;Assigned&quot;})]" />
+                      <AddToCollection x:TypeArguments="x:String" Collection="[v_AssignedIds]" Item="[v_SurgLine.Split(&quot;|&quot;c)(0).Trim()]" />
+                      <Assign DisplayName="Summary + surgeon">
+                        <Assign.To><OutArgument x:TypeArguments="x:String">[v_Summary]</OutArgument></Assign.To>
+                        <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary &amp; " | Surgeon: " &amp; v_SurgLine.Split("|"c)(1).Trim() &amp; " [" &amp; v_SurgLine.Split("|"c)(0).Trim() &amp; "]"]</InArgument></Assign.Value>
+                      </Assign>
+                    </Sequence>
+                  </If.Then>
+                  <If.Else>
+                    <Assign DisplayName="Summary + surgeon = attending">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Summary]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary &amp; " | Surgeon: attending is operating surgeon"]</InArgument></Assign.Value>
+                    </Assign>
+                  </If.Else>
+                </If>
+                <If DisplayName="Anaesthetist found?" Condition="[Not String.IsNullOrEmpty(v_AnaesLine)]">
+                  <If.Then>
+                    <Sequence>
+                      <ui:AppendLine DisplayName="Append DOCTOR_ASSIGNMENTS: Anaesthetist"
+                        FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]"
+                        Text="[String.Join(&quot;|&quot;, New String() {&quot;DA-&quot; &amp; in_CaseId &amp; &quot;-ANA&quot;, in_CaseId, v_AnaesLine.Split(&quot;|&quot;c)(0).Trim(), &quot;Anaesthetist&quot;, v_AnaesLine.Split(&quot;|&quot;c)(4).Trim(), v_Now, &quot;Assigned&quot;})]" />
+                      <AddToCollection x:TypeArguments="x:String" Collection="[v_AssignedIds]" Item="[v_AnaesLine.Split(&quot;|&quot;c)(0).Trim()]" />
+                      <Assign DisplayName="Summary + anaesthetist">
+                        <Assign.To><OutArgument x:TypeArguments="x:String">[v_Summary]</OutArgument></Assign.To>
+                        <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary &amp; " | Anaesthetist: " &amp; v_AnaesLine.Split("|"c)(1).Trim() &amp; " [" &amp; v_AnaesLine.Split("|"c)(0).Trim() &amp; "]"]</InArgument></Assign.Value>
+                      </Assign>
+                    </Sequence>
+                  </If.Then>
+                  <If.Else>
+                    <Assign DisplayName="Summary + anaesthetist pending">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Summary]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary &amp; " | Anaesthetist: PENDING (none on call)"]</InArgument></Assign.Value>
+                    </Assign>
+                  </If.Else>
+                </If>
+              </Sequence>
+            </If.Then>
+          </If>
+
+          <Assign DisplayName="Rebuild DOCTORS.psv with load +1 for assigned">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_NewDoc]</OutArgument></Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[v_DocRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).First().Trim() &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_DocRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) If(v_AssignedIds.Contains(l.Trim().Split("|"c)(0).Trim()), String.Join("|", l.Trim().Split("|"c).Take(9)) &amp; "|" &amp; (CInt(l.Trim().Split("|"c)(9).Trim()) + 1).ToString() &amp; "|" &amp; String.Join("|", l.Trim().Split("|"c).Skip(10)), l.Trim())))]</InArgument>
+            </Assign.Value>
+          </Assign>
+          <ui:WriteTextFile DisplayName="Write DOCTORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTORS.psv&quot;)]" Text="[v_NewDoc]" />
+
+          <Assign DisplayName="out: attending id">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_AttendingDoctorId]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_AttId]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: attending name">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_AttendingDoctorName]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_AttName]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: status assigned">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_CareTeamStatus]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">["Assigned"]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="out: summary">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[out_CareTeamSummary]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Summary]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </If.Else>
+    </If>
+
+    <ui:LogMessage DisplayName="Log: care-team result" Level="Info"
+      Message="[&quot;[AssignCareTeam] &quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; out_CareTeamStatus &amp; &quot;: &quot; &amp; out_CareTeamSummary]" />
+  </Sequence>
+</Activity>

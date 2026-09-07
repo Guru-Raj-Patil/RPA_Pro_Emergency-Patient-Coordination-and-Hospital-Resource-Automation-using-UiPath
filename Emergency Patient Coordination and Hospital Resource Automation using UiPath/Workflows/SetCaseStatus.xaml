@@ -1,0 +1,93 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_SetCaseStatus"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseStatus" Type="InArgument(x:String)" />
+    <x:Property Name="in_PendingAction" Type="InArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="SetCaseStatus" sap2010:WorkflowViewState.IdRef="Sequence_SCS">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Path" />
+      <Variable x:TypeArguments="x:String" Name="v_Raw" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Pending" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_Found" />
+    </Sequence.Variables>
+
+    <TryCatch DisplayName="Advance EMERGENCY_CASES.CaseStatus (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Path]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(in_DbFolder, "EMERGENCY_CASES.psv")]</InArgument></Assign.Value>
+          </Assign>
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+          </Assign>
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Pending]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[If(in_PendingAction Is Nothing, "", in_PendingAction).Replace("|", "/").Replace(ChrW(13), " ").Replace(ChrW(10), " ")]</InArgument></Assign.Value>
+          </Assign>
+          <ui:ReadTextFile DisplayName="Read EMERGENCY_CASES.psv" FileName="[v_Path]" Content="[v_Raw]" />
+          <Assign DisplayName="Row present?">
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Found]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Raw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Any(Function(l) l.Trim().StartsWith(in_CaseId &amp; "|"))]</InArgument></Assign.Value>
+          </Assign>
+          <If DisplayName="Rewrite row if found" Condition="[v_Found]">
+            <If.Then>
+              <Sequence>
+                <Assign>
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_Raw]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Raw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_CaseId &amp; "|") AndAlso l.Trim().Split("|"c).Length &gt;= 11, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), in_CaseStatus, l.Trim().Split("|"c)(3), l.Trim().Split("|"c)(4), l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), l.Trim().Split("|"c)(7), v_Pending, l.Trim().Split("|"c)(9), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                </Assign>
+                <ui:WriteTextFile DisplayName="Write EMERGENCY_CASES.psv" FileName="[v_Path]" Text="[v_Raw]" />
+                <ui:LogMessage DisplayName="Log: status advanced" Level="Info"
+                  Message="[&quot;[SetCaseStatus] &quot; &amp; in_CaseId &amp; &quot; -&gt; &quot; &amp; in_CaseStatus]" />
+              </Sequence>
+            </If.Then>
+            <If.Else>
+              <ui:LogMessage DisplayName="Log: case not found" Level="Warn"
+                Message="[&quot;[SetCaseStatus] &quot; &amp; in_CaseId &amp; &quot; not in EMERGENCY_CASES.psv - status not advanced&quot;]" />
+            </If.Else>
+          </If>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_S" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: non-fatal" Level="Warn"
+              Message="[&quot;[SetCaseStatus] non-fatal: could not advance &quot; &amp; in_CaseId &amp; &quot; to &quot; &amp; in_CaseStatus &amp; &quot;: &quot; &amp; ex_S.Message]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+  </Sequence>
+</Activity>

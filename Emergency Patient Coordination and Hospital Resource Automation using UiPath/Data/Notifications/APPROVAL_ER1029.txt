@@ -1,0 +1,32 @@
+ACTION REQUIRED - authorised staff review
+Case: ER1029
+Created: 2026-09-06 19:05:45
+
+==============================================
+ EMERGENCY CASE STATUS REPORT
+==============================================
+ Case ID : ER1029
+ Patient : Kavitha Nair
+ Department : General
+ Generated : 2026-09-06 19:05:45
+----------------------------------------------
+ RESOURCE STATUS
+ Bed : GEN-02 - Available
+ Ventilator : Not Required
+ Blood : B- x2 - Available
+ Documents : 4/4 documents present
+----------------------------------------------
+ READINESS ASSESSMENT (administrative only)
+ Readiness : 100%
+ Status : READY_FOR_APPROVAL
+ Pending : None
+----------------------------------------------
+ SCORING BREAKDOWN
+ Documents : 25/25
+ Bed : 25/25
+ Ventilator : 25/25
+ Blood : 25/25
+==============================================
+ NOTE: administrative readiness only. All clinical
+ decisions remain with authorised medical staff.
+==============================================

@@ -1,0 +1,242 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_CertifyDischarge"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="out_CertifiedCount" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CertifyDischarge" sap2010:WorkflowViewState.IdRef="Sequence_CD">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
+      <Variable x:TypeArguments="x:String" Name="v_CfgPath" />
+      <Variable x:TypeArguments="x:String" Name="v_CfgRaw" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_AutoCert" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmRaw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Adm" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Idx" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_F" />
+      <Variable x:TypeArguments="x:String" Name="v_CaseId" />
+      <Variable x:TypeArguments="x:String" Name="v_PatId" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId" />
+      <Variable x:TypeArguments="x:String" Name="v_DocId" />
+      <Variable x:TypeArguments="x:String" Name="v_DisRaw" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_AlreadyDone" />
+      <Variable x:TypeArguments="x:String" Name="v_CertFile" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_ManualCert" />
+      <Variable x:TypeArguments="x:String" Name="v_Notes" />
+      <Variable x:TypeArguments="x:String" Name="v_NewAdm" />
+      <Variable x:TypeArguments="x:Int32" Name="v_CertifiedCount" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Paths">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign>
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign>
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_CfgPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Config.psv&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: certify start" Level="Info"
+      Message="[&quot;[CertifyDischarge] HUMAN GATE 2 - scanning admitted cases for discharge clearance in &quot; &amp; v_Db]" />
+
+    <TryCatch DisplayName="Read AutoCertifyDischarge flag (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read Config.psv" FileName="[v_CfgPath]" Content="[v_CfgRaw]" />
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_AutoCert]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "autocertifydischarge").Select(Function(a) a(1).Trim().ToLower() = "true").DefaultIfEmpty(False).First()]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_C" />
+            </ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: no config flag" Level="Warn"
+              Message="[&quot;[CertifyDischarge] Config flag not read (&quot; &amp; ex_C.Message &amp; &quot;) - defaulting AutoCertifyDischarge=False (cases wait for a CERTIFY_&lt;case&gt;.txt file)&quot;]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <TryCatch DisplayName="Read ADMISSIONS.psv">
+      <TryCatch.Try>
+        <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_AdmRaw]" />
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_A" />
+            </ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-006"
+              Exception="[New Exception(&quot;SE-006: CertifyDischarge could not read ADMISSIONS.psv: &quot; &amp; ex_A.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Admitted cases">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Adm]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 8 AndAlso l.Split("|"c)(7).Trim() = "Admitted").ToList()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Reset counter">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_CertifiedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
+    </Assign>
+
+    <While DisplayName="Each admitted case" Condition="[v_Idx &lt; v_Adm.Count]">
+      <Sequence DisplayName="Certify one case">
+        <Assign DisplayName="Fields">
+          <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_F]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Adm(v_Idx).Split("|"c).ToList()]</InArgument></Assign.Value>
+        </Assign>
+        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(1).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PatId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(2).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_BedId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(3).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_DocId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(4).Trim()]</InArgument></Assign.Value></Assign>
+
+        <ui:ReadTextFile DisplayName="Read DISCHARGES.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;DISCHARGES.psv&quot;)]" Content="[v_DisRaw]" />
+        <Assign DisplayName="Already has a discharge record?">
+          <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_AlreadyDone]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_DisRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Any(Function(l) l.Trim().StartsWith("DIS-" &amp; v_CaseId &amp; "|"))]</InArgument></Assign.Value>
+        </Assign>
+
+        <If DisplayName="Needs certification?" Condition="[Not v_AlreadyDone]">
+          <If.Then>
+            <Sequence>
+              <Assign DisplayName="Manual clearance file path">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_CertFile]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Notif, "CERTIFY_" &amp; v_CaseId &amp; ".txt")]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Manual clearance present?">
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_ManualCert]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Boolean">[System.IO.File.Exists(v_CertFile)]</InArgument></Assign.Value>
+              </Assign>
+
+              <If DisplayName="Certified (manual file OR auto flag)?" Condition="[v_ManualCert OrElse v_AutoCert]">
+                <If.Then>
+                  <Sequence DisplayName="Record clinical clearance">
+                    <Assign DisplayName="Clearance basis">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notes]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[If(v_ManualCert, "Manual clearance file received (CERTIFY_" &amp; v_CaseId &amp; ".txt) - signed by attending " &amp; v_DocId, "Auto-certified per Config AutoCertifyDischarge=True on behalf of attending " &amp; v_DocId &amp; "; stay complete, no outstanding administrative holds")]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:AppendLine DisplayName="Append DISCHARGES draft row"
+                      FileName="[System.IO.Path.Combine(v_Db, &quot;DISCHARGES.psv&quot;)]"
+                      Text="[String.Join(&quot;|&quot;, New String() {&quot;DIS-&quot; &amp; v_CaseId, v_CaseId, v_PatId, v_DocId, v_Now, &quot;&quot;, &quot;Pending&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;})]" />
+                    <ui:ReadTextFile DisplayName="Re-read ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_NewAdm]" />
+                    <Assign DisplayName="ADMISSIONS: Status -&gt; FitForDischarge">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_NewAdm]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_NewAdm.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 9 AndAlso l.Trim().Split("|"c)(1).Trim() = v_CaseId, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), l.Trim().Split("|"c)(3), l.Trim().Split("|"c)(4), l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), "FitForDischarge", v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile DisplayName="Write ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Text="[v_NewAdm]" />
+                    <ui:WriteTextFile DisplayName="Write clinical clearance certificate"
+                      FileName="[System.IO.Path.Combine(v_Notif, &quot;CLINICAL_CLEARANCE_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                      Text="[&quot;CLINICAL FITNESS FOR DISCHARGE&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Certified by: &quot; &amp; v_DocId &amp; &quot; (attending)   At: &quot; &amp; v_Now &amp; Environment.NewLine &amp; &quot;Basis: &quot; &amp; v_Notes &amp; Environment.NewLine &amp; Environment.NewLine &amp; &quot;This certificate authorises ADMINISTRATIVE discharge processing only. The clinical decision rests solely with the certifying doctor. The bot performs no medical assessment.&quot;]" />
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DISCHARGE_CERTIFIED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DISCHARGE_CERTIFIED"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Attending " &amp; v_DocId &amp; " certified " &amp; v_CaseId &amp; " clinically fit for discharge. " &amp; v_Notes]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">[v_DocId &amp; " (attending)"]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Lifecycle: FIT_FOR_DISCHARGE" UnSafe="False" WorkflowFileName="Workflows\SetCaseStatus.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">["FIT_FOR_DISCHARGE"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">["Clinically cleared for discharge by attending " &amp; v_DocId &amp; " - awaiting discharge processing"]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <Assign><Assign.To><OutArgument x:TypeArguments="x:Int32">[v_CertifiedCount]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Int32">[v_CertifiedCount + 1]</InArgument></Assign.Value></Assign>
+                  </Sequence>
+                </If.Then>
+                <If.Else>
+                  <Sequence DisplayName="Request clearance and hold">
+                    <ui:WriteTextFile DisplayName="Write discharge-clearance request"
+                      FileName="[System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_CLEARANCE_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                      Text="[&quot;DISCHARGE CLEARANCE REQUESTED&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Attending doctor: &quot; &amp; v_DocId &amp; Environment.NewLine &amp; Environment.NewLine &amp; &quot;ACTION (HUMAN): The attending doctor confirms the patient is clinically fit for discharge by placing a file named CERTIFY_&quot; &amp; v_CaseId &amp; &quot;.txt in this folder. The bot will NOT decide clinical fitness. (Set Config AutoCertifyDischarge=True to auto-certify for demo runs.)&quot; &amp; Environment.NewLine &amp; &quot;Requested at: &quot; &amp; v_Now]" />
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DISCHARGE_PENDING_CERTIFICATION" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DISCHARGE_PENDING_CERTIFICATION"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Discharge-clearance request raised for " &amp; v_CaseId &amp; "; awaiting attending " &amp; v_DocId &amp; " sign-off (HUMAN GATE 2)"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                  </Sequence>
+                </If.Else>
+              </If>
+            </Sequence>
+          </If.Then>
+        </If>
+
+        <Assign DisplayName="Next">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Idx]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Idx + 1]</InArgument></Assign.Value>
+        </Assign>
+      </Sequence>
+    </While>
+
+    <Assign DisplayName="out_CertifiedCount">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_CertifiedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_CertifiedCount]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["CertifyDischarge (HUMAN GATE 2): " &amp; v_Adm.Count.ToString() &amp; " admitted case(s), " &amp; v_CertifiedCount.ToString() &amp; " certified fit this run, " &amp; (v_Adm.Count - v_CertifiedCount).ToString() &amp; " still awaiting attending sign-off. AutoCertifyDischarge=" &amp; v_AutoCert.ToString()]</InArgument></Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: certify done" Level="Info" Message="[out_Summary]" />
+  </Sequence>
+</Activity>

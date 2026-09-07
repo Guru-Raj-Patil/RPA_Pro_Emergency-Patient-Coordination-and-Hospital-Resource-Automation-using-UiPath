@@ -1,81 +1,62 @@
-<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
-  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
-  xmlns:ui="http://schemas.uipath.com/workflow/activities"
-  mc:Ignorable="sap sap2010" x:Class="Workflows_WriteAuditLog"
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_WriteAuditLog"
   xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
   xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
   xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
-  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <x:Members>
-    <x:Property Name="in_CaseId"      Type="InArgument(x:String)" />
-    <x:Property Name="in_Action"      Type="InArgument(x:String)" />
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_Action" Type="InArgument(x:String)" />
     <x:Property Name="in_Description" Type="InArgument(x:String)" />
     <x:Property Name="in_PerformedBy" Type="InArgument(x:String)" />
-    <x:Property Name="in_DBPath"      Type="InArgument(x:String)" />
   </x:Members>
   <TextExpression.NamespacesForImplementation>
     <sco:Collection x:TypeArguments="x:String">
       <x:String>System</x:String>
       <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
     </sco:Collection>
   </TextExpression.NamespacesForImplementation>
   <TextExpression.ReferencesForImplementation>
     <sco:Collection x:TypeArguments="AssemblyReference">
       <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
       <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
     </sco:Collection>
   </TextExpression.ReferencesForImplementation>
-  <Sequence DisplayName="WriteAuditLog_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_WAL">
-    <TryCatch DisplayName="TryCatch: Write Audit">
+  <Sequence DisplayName="WriteAuditLog" sap2010:WorkflowViewState.IdRef="Sequence_WAL">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Line" />
+    </Sequence.Variables>
+    <TryCatch DisplayName="Append audit row (non-fatal)">
       <TryCatch.Try>
-                <ui:InvokeCode DisplayName="Insert AUDIT_LOG Row">
-          <ui:InvokeCode.Code>
-            <![CDATA[
-Dim timestamp As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-Dim performer As String = If(String.IsNullOrEmpty(in_PerformedBy), "Bot", in_PerformedBy)
-
-Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_audit_" & in_CaseId & ".py")
-Dim dbPathSafe As String = in_DBPath.Replace("\", "/")
-
-Dim pyScript As String =
-    "import sqlite3" & Environment.NewLine &
-    "conn = sqlite3.connect(r'" & dbPathSafe & "')" & Environment.NewLine &
-    "conn.execute(""INSERT INTO AUDIT_LOG (CaseId, Action, Description, Timestamp, PerformedBy) VALUES (?, ?, ?, ?, ?)"", (" &
-    """" & in_CaseId & """, """ & in_Action & """, """ & in_Description & """, """ & timestamp & """, """ & performer & """" &
-    "))" & Environment.NewLine &
-    "conn.commit()" & Environment.NewLine &
-    "conn.close()"
-
-System.IO.File.WriteAllText(pyFile, pyScript)
-Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
-psi.UseShellExecute = False
-psi.CreateNoWindow = True
-psi.RedirectStandardError = True
-Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
-Dim errOut As String = p.StandardError.ReadToEnd()
-p.WaitForExit(10000)
-Try : System.IO.File.Delete(pyFile) : Catch : End Try
-            ]]>
-          </ui:InvokeCode.Code>
-          <ui:InvokeCode.Arguments>
-            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_Action">[in_Action]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_Description">[in_Description]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">[in_PerformedBy]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[in_DBPath]</InArgument>
-          </ui:InvokeCode.Arguments>
-        </ui:InvokeCode>
+        <Sequence>
+          <Assign DisplayName="Build row">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Line]</OutArgument></Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[String.Join("|", New String() {DateTime.Now.Ticks.ToString(), in_CaseId, in_Action, in_Description.Replace("|", "/").Replace(ChrW(13), " ").Replace(ChrW(10), " "), DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), If(String.IsNullOrEmpty(in_PerformedBy), "Bot", in_PerformedBy)})]</InArgument>
+            </Assign.Value>
+          </Assign>
+          <ui:AppendLine DisplayName="Append to AUDIT_LOG.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;AUDIT_LOG.psv&quot;)]" Text="[v_Line]" />
+        </Sequence>
       </TryCatch.Try>
       <TryCatch.Catches>
         <Catch x:TypeArguments="s:Exception">
           <ActivityAction x:TypeArguments="s:Exception">
             <ActivityAction.Argument>
-              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Audit" />
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_A" />
             </ActivityAction.Argument>
-            <ui:LogMessage DisplayName="Log: Audit Write Failed" Level="Warn"
-              Message="[&quot;[WriteAuditLog] Non-fatal: Failed to write audit entry for case &quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_Audit.Message]" />
+            <ui:LogMessage DisplayName="Log: audit failed" Level="Warn"
+              Message="[&quot;[WriteAuditLog] Non-fatal: could not write audit row for &quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_A.Message]" />
           </ActivityAction>
         </Catch>
       </TryCatch.Catches>

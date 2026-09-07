@@ -1,0 +1,304 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_GenerateDashboard"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_Config" Type="InArgument(x:Object)" />
+    <x:Property Name="in_TotalCases" Type="InArgument(x:Int32)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>System.Diagnostics</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>System.Diagnostics.Process</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="GenerateDashboard" sap2010:WorkflowViewState.IdRef="Sequence_GD">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:String)" Name="v_Cfg" />
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_DashDir" />
+      <Variable x:TypeArguments="x:String" Name="v_TplPath" />
+      <Variable x:TypeArguments="x:String" Name="v_OutPath" />
+      <Variable x:TypeArguments="x:String" Name="v_Hosp" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Meta" />
+      <Variable x:TypeArguments="x:String" Name="v_Html" />
+      <Variable x:TypeArguments="x:String" Name="v_Cases" />
+      <Variable x:TypeArguments="x:String" Name="v_Pats" />
+      <Variable x:TypeArguments="x:String" Name="v_Beds" />
+      <Variable x:TypeArguments="x:String" Name="v_Vents" />
+      <Variable x:TypeArguments="x:String" Name="v_Blood" />
+      <Variable x:TypeArguments="x:String" Name="v_Resv" />
+      <Variable x:TypeArguments="x:String" Name="v_Audit" />
+      <Variable x:TypeArguments="x:String" Name="v_Docs" />
+      <Variable x:TypeArguments="x:String" Name="v_Tests" />
+      <Variable x:TypeArguments="x:String" Name="v_Input" />
+      <Variable x:TypeArguments="x:String" Name="v_Depts" />
+      <Variable x:TypeArguments="x:String" Name="v_Doctors" />
+      <Variable x:TypeArguments="x:String" Name="v_Theatres" />
+      <Variable x:TypeArguments="x:String" Name="v_DocAssign" />
+      <Variable x:TypeArguments="x:String" Name="v_OtSched" />
+      <Variable x:TypeArguments="x:String" Name="v_Adm" />
+      <Variable x:TypeArguments="x:String" Name="v_Billing" />
+      <Variable x:TypeArguments="x:String" Name="v_Disch" />
+      <Variable x:TypeArguments="x:String" Name="v_Claims" />
+      <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: dashboard start" Level="Info"
+      Message="[&quot;[GenerateDashboard] Building operations dashboard from datastore...&quot;]" />
+
+    <Assign DisplayName="Cast config">
+      <Assign.To><OutArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[v_Cfg]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[CType(in_Config, Dictionary(Of String, String))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(v_Cfg.ContainsKey(&quot;ProjectRoot&quot;), v_Cfg(&quot;ProjectRoot&quot;), System.IO.Directory.GetParent(in_DbFolder).Parent.FullName)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Hospital name (quote-safe)">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Hosp]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(v_Cfg.ContainsKey(&quot;HospitalName&quot;), v_Cfg(&quot;HospitalName&quot;), &quot;Hospital&quot;).Replace(&quot;|&quot;, &quot;/&quot;).Replace(ChrW(34), ChrW(39))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Dashboard dir">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DashDir]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Dashboard&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Template path">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_TplPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_DashDir, &quot;dashboard_template.html&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Output path">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_OutPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_DashDir, &quot;index.html&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Ensure dir">
+      <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.IO.Directory.CreateDirectory(v_DashDir)]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Render dashboard (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+
+          <If DisplayName="Template present?" Condition="[Not System.IO.File.Exists(v_TplPath)]">
+            <If.Then>
+              <Throw DisplayName="Throw: template missing"
+                Exception="[New System.IO.FileNotFoundException(&quot;dashboard_template.html not found in Data\Dashboard - cannot render dashboard&quot;, v_TplPath)]" />
+            </If.Then>
+          </If>
+
+          <ui:ReadTextFile DisplayName="Read template" FileName="[v_TplPath]" Content="[v_Html]" />
+
+          <ui:ReadTextFile DisplayName="Read EMERGENCY_CASES.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;EMERGENCY_CASES.psv&quot;)]" Content="[v_Cases]" />
+          <ui:ReadTextFile DisplayName="Read PATIENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;PATIENTS.psv&quot;)]" Content="[v_Pats]" />
+          <ui:ReadTextFile DisplayName="Read BEDS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+          <ui:ReadTextFile DisplayName="Read VENTILATORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Content="[v_Vents]" />
+          <ui:ReadTextFile DisplayName="Read BLOOD_INVENTORY.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BLOOD_INVENTORY.psv&quot;)]" Content="[v_Blood]" />
+          <ui:ReadTextFile DisplayName="Read RESOURCE_RESERVATIONS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;RESOURCE_RESERVATIONS.psv&quot;)]" Content="[v_Resv]" />
+          <ui:ReadTextFile DisplayName="Read AUDIT_LOG.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;AUDIT_LOG.psv&quot;)]" Content="[v_Audit]" />
+          <ui:ReadTextFile DisplayName="Read DOCUMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCUMENTS.psv&quot;)]" Content="[v_Docs]" />
+          <ui:ReadTextFile DisplayName="Read DEPARTMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DEPARTMENTS.psv&quot;)]" Content="[v_Depts]" />
+          <ui:ReadTextFile DisplayName="Read DOCTORS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTORS.psv&quot;)]" Content="[v_Doctors]" />
+          <ui:ReadTextFile DisplayName="Read OPERATING_THEATRES.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OPERATING_THEATRES.psv&quot;)]" Content="[v_Theatres]" />
+          <ui:ReadTextFile DisplayName="Read DOCTOR_ASSIGNMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]" Content="[v_DocAssign]" />
+          <ui:ReadTextFile DisplayName="Read OT_SCHEDULE.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OT_SCHEDULE.psv&quot;)]" Content="[v_OtSched]" />
+          <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;ADMISSIONS.psv&quot;)]" Content="[v_Adm]" />
+          <ui:ReadTextFile DisplayName="Read BILLING.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BILLING.psv&quot;)]" Content="[v_Billing]" />
+          <ui:ReadTextFile DisplayName="Read DISCHARGES.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DISCHARGES.psv&quot;)]" Content="[v_Disch]" />
+          <ui:ReadTextFile DisplayName="Read INSURANCE_CLAIMS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;INSURANCE_CLAIMS.psv&quot;)]" Content="[v_Claims]" />
+
+          <If DisplayName="PatientInput.psv present?" Condition="[System.IO.File.Exists(System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;PatientInput.psv&quot;))]">
+            <If.Then>
+              <ui:ReadTextFile DisplayName="Read PatientInput.psv"
+                FileName="[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;PatientInput.psv&quot;)]" Content="[v_Input]" />
+            </If.Then>
+          </If>
+
+          <If DisplayName="TEST_RESULTS.psv present?" Condition="[System.IO.File.Exists(System.IO.Path.Combine(in_DbFolder, &quot;TEST_RESULTS.psv&quot;))]">
+            <If.Then>
+              <ui:ReadTextFile DisplayName="Read TEST_RESULTS.psv"
+                FileName="[System.IO.Path.Combine(in_DbFolder, &quot;TEST_RESULTS.psv&quot;)]" Content="[v_Tests]" />
+            </If.Then>
+          </If>
+
+          <Assign DisplayName="Build meta block">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Meta]</OutArgument></Assign.To>
+            <Assign.Value>
+              <InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {&quot;key|value&quot;, &quot;hospital|&quot; &amp; v_Hosp, &quot;generatedAt|&quot; &amp; v_Now, &quot;totalCases|&quot; &amp; in_TotalCases.ToString()})]</InArgument>
+            </Assign.Value>
+          </Assign>
+
+          <Assign DisplayName="Inject: meta">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_META--&gt;&quot;, v_Meta)]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: cases">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_CASES--&gt;&quot;, v_Cases.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: patients">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_PATIENTS--&gt;&quot;, v_Pats.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: beds">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_BEDS--&gt;&quot;, v_Beds.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: ventilators">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_VENTS--&gt;&quot;, v_Vents.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: blood">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_BLOOD--&gt;&quot;, v_Blood.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: reservations">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_RESV--&gt;&quot;, v_Resv.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: audit">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_AUDIT--&gt;&quot;, v_Audit.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: documents">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DOCS--&gt;&quot;, v_Docs.Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: intake queue">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_INPUT--&gt;&quot;, If(v_Input, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: tests">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_TESTS--&gt;&quot;, If(v_Tests, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: departments">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DEPTS--&gt;&quot;, If(v_Depts, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: doctors">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DOCTORS--&gt;&quot;, If(v_Doctors, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: theatres">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_THEATRES--&gt;&quot;, If(v_Theatres, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: doctor assignments">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DOCASSIGN--&gt;&quot;, If(v_DocAssign, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: OT schedule">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_OTSCHED--&gt;&quot;, If(v_OtSched, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: admissions">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_ADM--&gt;&quot;, If(v_Adm, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: billing">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_BILLING--&gt;&quot;, If(v_Billing, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: discharges">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DISCH--&gt;&quot;, If(v_Disch, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: insurance claims">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_CLAIMS--&gt;&quot;, If(v_Claims, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+
+          <ui:WriteTextFile DisplayName="Write index.html" FileName="[v_OutPath]" Text="[v_Html]" />
+
+          <ui:LogMessage DisplayName="Log: dashboard written" Level="Info"
+            Message="[&quot;[GenerateDashboard] Dashboard written: &quot; &amp; v_OutPath &amp; &quot;  (&quot; &amp; v_Html.Length &amp; &quot; chars)&quot;]" />
+
+          <If DisplayName="Auto-open dashboard?" Condition="[Not v_Cfg.ContainsKey(&quot;OpenDashboardAfterRun&quot;) OrElse v_Cfg(&quot;OpenDashboardAfterRun&quot;).Trim().ToLower() &lt;&gt; &quot;false&quot;]">
+            <If.Then>
+              <TryCatch DisplayName="Open in browser (non-fatal)">
+                <TryCatch.Try>
+                  <Sequence>
+                    <Assign DisplayName="Launch default browser">
+                      <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo() With {.FileName = v_OutPath, .UseShellExecute = True})]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:LogMessage DisplayName="Log: dashboard opened" Level="Info"
+                      Message="[&quot;[GenerateDashboard] Dashboard opened in default browser.&quot;]" />
+                  </Sequence>
+                </TryCatch.Try>
+                <TryCatch.Catches>
+                  <Catch x:TypeArguments="s:Exception">
+                    <ActivityAction x:TypeArguments="s:Exception">
+                      <ActivityAction.Argument>
+                        <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_O" />
+                      </ActivityAction.Argument>
+                      <ui:LogMessage DisplayName="Log: open failed" Level="Warn"
+                        Message="[&quot;[GenerateDashboard] Could not auto-open dashboard (open it manually: &quot; &amp; v_OutPath &amp; &quot;): &quot; &amp; ex_O.Message]" />
+                    </ActivityAction>
+                  </Catch>
+                </TryCatch.Catches>
+              </TryCatch>
+            </If.Then>
+          </If>
+
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_D" />
+            </ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: dashboard failed" Level="Warn"
+              Message="[&quot;[GenerateDashboard] Non-fatal: could not build dashboard: &quot; &amp; ex_D.Message]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+  </Sequence>
+</Activity>

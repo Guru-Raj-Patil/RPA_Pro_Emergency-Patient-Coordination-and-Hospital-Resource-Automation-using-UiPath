@@ -1,190 +1,259 @@
-<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
-  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
-  xmlns:ui="http://schemas.uipath.com/workflow/activities"
-  mc:Ignorable="sap sap2010" x:Class="Workflows_ReserveResources"
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_ReserveResources"
   xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
   xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
   xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
-  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <x:Members>
-    <x:Property Name="in_CaseId"             Type="InArgument(x:String)" />
-    <x:Property Name="in_BedId"              Type="InArgument(x:String)" />
-    <x:Property Name="in_VentilatorId"       Type="InArgument(x:String)" />
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_BedId" Type="InArgument(x:String)" />
+    <x:Property Name="in_VentilatorId" Type="InArgument(x:String)" />
     <x:Property Name="in_VentilatorRequired" Type="InArgument(x:Boolean)" />
-    <x:Property Name="in_BloodGroup"         Type="InArgument(x:String)" />
+    <x:Property Name="in_BloodGroup" Type="InArgument(x:String)" />
     <x:Property Name="in_RequiredBloodUnits" Type="InArgument(x:Int32)" />
-    <x:Property Name="in_DBPath"             Type="InArgument(x:String)" />
+    <x:Property Name="in_TheatreId" Type="InArgument(x:String)" />
+    <x:Property Name="in_OtSlotId" Type="InArgument(x:String)" />
     <x:Property Name="out_ReservationSuccess" Type="OutArgument(x:Boolean)" />
-    <x:Property Name="out_FailureReason"     Type="OutArgument(x:String)" />
+    <x:Property Name="out_FailureReason" Type="OutArgument(x:String)" />
   </x:Members>
   <TextExpression.NamespacesForImplementation>
     <sco:Collection x:TypeArguments="x:String">
       <x:String>System</x:String>
       <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
     </sco:Collection>
   </TextExpression.NamespacesForImplementation>
   <TextExpression.ReferencesForImplementation>
     <sco:Collection x:TypeArguments="AssemblyReference">
       <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
       <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
     </sco:Collection>
   </TextExpression.ReferencesForImplementation>
-  <Sequence DisplayName="ReserveResources_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_RR">
+  <Sequence DisplayName="ReserveResources" sap2010:WorkflowViewState.IdRef="Sequence_RR">
     <Sequence.Variables>
-      <Variable x:TypeArguments="x:Boolean" Name="v_Success"       Default="False" />
-      <Variable x:TypeArguments="x:String"  Name="v_FailureReason" Default="" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Beds" />
+      <Variable x:TypeArguments="x:String" Name="v_Vents" />
+      <Variable x:TypeArguments="x:String" Name="v_Blood" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Avail" />
+      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_BedDone" />
+      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_VentDone" />
+      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_BloodDone" />
+      <Variable x:TypeArguments="x:String" Name="v_Ot" />
+      <Variable x:TypeArguments="x:String" Name="v_Sched" />
+      <Variable x:TypeArguments="x:String" Name="v_Da" />
+      <Variable x:TypeArguments="x:String" Name="v_Doc" />
+      <Variable x:TypeArguments="x:String" Name="v_RelIds" />
     </Sequence.Variables>
 
-    <ui:LogMessage DisplayName="Log: Starting Reservation" Level="Info"
-      Message="[&quot;[ReserveResources] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Starting transactional resource reservation&quot;]" />
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Default outputs">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_ReservationSuccess]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[False]</InArgument></Assign.Value>
+    </Assign>
+    <Assign>
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_FailureReason]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value>
+    </Assign>
 
-    <TryCatch DisplayName="TryCatch: Transactional Reservation">
+    <ui:LogMessage DisplayName="Log: reservation start" Level="Info"
+      Message="[&quot;[ReserveResources] &quot; &amp; in_CaseId &amp; &quot;  - reserving bed=&quot; &amp; in_BedId &amp; &quot; vent=&quot; &amp; in_VentilatorId &amp; &quot; blood=&quot; &amp; in_BloodGroup &amp; &quot;x&quot; &amp; in_RequiredBloodUnits]" />
+
+    <TryCatch DisplayName="Reserve with compensation">
       <TryCatch.Try>
-        <ui:InvokeCode DisplayName="Execute Transactional Reservation">
-          <ui:InvokeCode.Code>
-            <![CDATA[
-' Build a Python script that executes the full reservation as a single SQLite transaction
-' with proper rollback on any failure (Business Rule BR-10)
-Dim now As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-Dim ventRequired As String = If(in_VentilatorRequired, "True", "False")
-Dim ventId As String = If(String.IsNullOrEmpty(in_VentilatorId), "", in_VentilatorId)
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read BEDS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+          <If DisplayName="Bed still available?" Condition="[Not v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split(&quot;|&quot;c)).Any(Function(a) a.Length &gt;= 4 AndAlso a(0) = in_BedId AndAlso a(3) = &quot;Available&quot;)]">
+            <If.Then>
+              <Throw Exception="[New Exception(&quot;Bed &quot; &amp; in_BedId &amp; &quot; is no longer available&quot;)]" />
+            </If.Then>
+          </If>
+          <Assign DisplayName="Mark bed Reserved">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Beds]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_BedId &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "Reserved", l.Trim().Split("|"c)(4), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+          </Assign>
+          <ui:WriteTextFile DisplayName="Write BEDS.psv" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Text="[v_Beds]" />
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_BedDone]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value></Assign>
 
-Dim pyScript As New System.Text.StringBuilder()
-pyScript.AppendLine("import sqlite3, sys, datetime")
-pyScript.AppendLine("now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')")
-pyScript.AppendLine(String.Format("conn = sqlite3.connect(r'{0}')", in_DBPath))
-pyScript.AppendLine("conn.execute('PRAGMA foreign_keys=ON')")
-pyScript.AppendLine("try:")
-pyScript.AppendLine("    conn.execute('BEGIN EXCLUSIVE')")
+          <If DisplayName="Ventilator needed?" Condition="[in_VentilatorRequired AndAlso in_VentilatorId &lt;&gt; &quot;&quot; AndAlso in_VentilatorId &lt;&gt; &quot;N/A&quot;]">
+            <If.Then>
+              <Sequence>
+                <ui:ReadTextFile DisplayName="Read VENTILATORS.psv"
+                  FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Content="[v_Vents]" />
+                <If DisplayName="Vent still available?" Condition="[Not v_Vents.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split(&quot;|&quot;c)).Any(Function(a) a.Length &gt;= 2 AndAlso a(0) = in_VentilatorId AndAlso a(1) = &quot;Available&quot;)]">
+                  <If.Then>
+                    <Throw Exception="[New Exception(&quot;Ventilator &quot; &amp; in_VentilatorId &amp; &quot; is no longer available&quot;)]" />
+                  </If.Then>
+                </If>
+                <Assign DisplayName="Mark vent Reserved">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_Vents]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Vents.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_VentilatorId &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), "Reserved", l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                </Assign>
+                <ui:WriteTextFile DisplayName="Write VENTILATORS.psv" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Text="[v_Vents]" />
+                <Assign><Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_VentDone]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value></Assign>
+              </Sequence>
+            </If.Then>
+          </If>
 
-' Step 1: Reserve Bed
-pyScript.AppendLine(String.Format(
-    "    # Step 1: Reserve bed {0}",
-    in_BedId))
-pyScript.AppendLine(String.Format(
-    "    r = conn.execute(""SELECT Status FROM BEDS WHERE BedId='{0}'"").fetchone()",
-    in_BedId))
-pyScript.AppendLine("    if not r or r[0] != 'Available': raise Exception('Bed ' + r[0] if r else 'Bed not found' + ' - no longer available')")
-pyScript.AppendLine(String.Format(
-    "    conn.execute(""UPDATE BEDS SET Status='Reserved', LastUpdated=now WHERE BedId='{0}'"")".Replace("now", "'" & now & "'"),
-    in_BedId))
-pyScript.AppendLine(String.Format(
-    "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Bed','{1}',1,'Reserved','{2}')"")".Replace("'{2}'", "'" & now & "'"),
-    in_CaseId, in_BedId))
+          <ui:ReadTextFile DisplayName="Read BLOOD_INVENTORY.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BLOOD_INVENTORY.psv&quot;)]" Content="[v_Blood]" />
+          <Assign DisplayName="Available units">
+            <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Avail]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Int32">[CInt(v_Blood.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0) = in_BloodGroup).Select(Function(a) a(1)).DefaultIfEmpty("0").First())]</InArgument></Assign.Value>
+          </Assign>
+          <If DisplayName="Enough blood?" Condition="[v_Avail &lt; in_RequiredBloodUnits]">
+            <If.Then>
+              <Throw Exception="[New Exception(&quot;Insufficient blood: &quot; &amp; in_BloodGroup &amp; &quot; has &quot; &amp; v_Avail &amp; &quot;, need &quot; &amp; in_RequiredBloodUnits)]" />
+            </If.Then>
+          </If>
+          <Assign DisplayName="Deduct blood units">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Blood]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Blood.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_BloodGroup &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), (v_Avail - in_RequiredBloodUnits).ToString(), l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+          </Assign>
+          <ui:WriteTextFile DisplayName="Write BLOOD_INVENTORY.psv" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BLOOD_INVENTORY.psv&quot;)]" Text="[v_Blood]" />
+          <Assign><Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_BloodDone]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value></Assign>
 
-' Step 2: Reserve Ventilator (if required)
-If in_VentilatorRequired AndAlso Not String.IsNullOrEmpty(in_VentilatorId) Then
-    pyScript.AppendLine(String.Format("    # Step 2: Reserve ventilator {0}", in_VentilatorId))
-    pyScript.AppendLine(String.Format(
-        "    r2 = conn.execute(""SELECT Status FROM VENTILATORS WHERE VentilatorId='{0}'"").fetchone()",
-        in_VentilatorId))
-    pyScript.AppendLine("    if not r2 or r2[0] != 'Available': raise Exception('Ventilator no longer available')")
-    pyScript.AppendLine(String.Format(
-        "    conn.execute(""UPDATE VENTILATORS SET Status='Reserved', LastUpdated='{0}' WHERE VentilatorId='{1}'"")".Replace("'{1}'", "'" & in_VentilatorId & "'"),
-        now))
-    pyScript.AppendLine(String.Format(
-        "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Ventilator','{1}',1,'Reserved','{2}')"")".Replace("'{2}'", "'" & now & "'"),
-        in_CaseId, in_VentilatorId))
-End If
+          <ui:AppendLine DisplayName="Reservation row: Bed" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;RESOURCE_RESERVATIONS.psv&quot;)]"
+            Text="[String.Join(&quot;|&quot;, New String() {DateTime.Now.Ticks.ToString(), in_CaseId, &quot;Bed&quot;, in_BedId, &quot;1&quot;, &quot;Reserved&quot;, v_Now})]" />
+          <If DisplayName="Vent reservation row?" Condition="[v_VentDone]">
+            <If.Then>
+              <ui:AppendLine DisplayName="Reservation row: Ventilator" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;RESOURCE_RESERVATIONS.psv&quot;)]"
+                Text="[String.Join(&quot;|&quot;, New String() {(DateTime.Now.Ticks + 1).ToString(), in_CaseId, &quot;Ventilator&quot;, in_VentilatorId, &quot;1&quot;, &quot;Reserved&quot;, v_Now})]" />
+            </If.Then>
+          </If>
+          <ui:AppendLine DisplayName="Reservation row: Blood" FileName="[System.IO.Path.Combine(in_DbFolder, &quot;RESOURCE_RESERVATIONS.psv&quot;)]"
+            Text="[String.Join(&quot;|&quot;, New String() {(DateTime.Now.Ticks + 2).ToString(), in_CaseId, &quot;Blood&quot;, in_BloodGroup, in_RequiredBloodUnits.ToString(), &quot;Reserved&quot;, v_Now})]" />
 
-' Step 3: Reserve Blood
-pyScript.AppendLine(String.Format("    # Step 3: Reserve {0} units of {1} blood", in_RequiredBloodUnits, in_BloodGroup))
-pyScript.AppendLine(String.Format(
-    "    r3 = conn.execute(""SELECT AvailableUnits FROM BLOOD_INVENTORY WHERE BloodGroup='{0}'"").fetchone()",
-    in_BloodGroup))
-pyScript.AppendLine(String.Format("    if not r3 or r3[0] < {0}: raise Exception('Insufficient blood: available=' + str(r3[0] if r3 else 0))", in_RequiredBloodUnits))
-pyScript.AppendLine(String.Format(
-    "    conn.execute(""UPDATE BLOOD_INVENTORY SET AvailableUnits=AvailableUnits-{0}, LastUpdated='{1}' WHERE BloodGroup='{2}'"")".Replace("'{2}'", "'" & in_BloodGroup & "'"),
-    in_RequiredBloodUnits, now))
-pyScript.AppendLine(String.Format(
-    "    conn.execute(""INSERT INTO RESOURCE_RESERVATIONS (CaseId,ResourceType,ResourceId,Quantity,Status,ReservedAt) VALUES ('{0}','Blood','{1}',{2},'Reserved','{3}')"")".Replace("'{3}'", "'" & now & "'"),
-    in_CaseId, in_BloodGroup, in_RequiredBloodUnits))
-
-' Commit
-pyScript.AppendLine("    conn.commit()")
-pyScript.AppendLine("    print('SUCCESS')")
-pyScript.AppendLine("except Exception as e:")
-pyScript.AppendLine("    conn.rollback()")
-pyScript.AppendLine("    print('FAILED:' + str(e))")
-pyScript.AppendLine("finally:")
-pyScript.AppendLine("    conn.close()")
-
-' Write and execute Python script
-Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-    "uipath_reserve_" & in_CaseId & ".py")
-System.IO.File.WriteAllText(pyFile, pyScript.ToString())
-
-Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
-psi.UseShellExecute = False
-psi.CreateNoWindow  = True
-psi.RedirectStandardOutput = True
-psi.RedirectStandardError  = True
-Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
-Dim stdOut As String = p.StandardOutput.ReadToEnd().Trim()
-Dim stdErr As String = p.StandardError.ReadToEnd().Trim()
-p.WaitForExit(30000)
-
-If stdOut.StartsWith("SUCCESS") Then
-    v_Success       = True
-    v_FailureReason = ""
-Else
-    v_Success       = False
-    v_FailureReason = If(stdOut.StartsWith("FAILED:"), stdOut.Substring(7), "Unknown reservation error: " & stdErr)
-End If
-
-' Cleanup temp file
-Try : System.IO.File.Delete(pyFile) : Catch : End Try
-            ]]>
-          </ui:InvokeCode.Code>
-          <ui:InvokeCode.Arguments>
-            <InArgument x:TypeArguments="x:String"  x:Key="in_CaseId">[in_CaseId]</InArgument>
-            <InArgument x:TypeArguments="x:String"  x:Key="in_BedId">[in_BedId]</InArgument>
-            <InArgument x:TypeArguments="x:String"  x:Key="in_VentilatorId">[in_VentilatorId]</InArgument>
-            <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[in_VentilatorRequired]</InArgument>
-            <InArgument x:TypeArguments="x:String"  x:Key="in_BloodGroup">[in_BloodGroup]</InArgument>
-            <InArgument x:TypeArguments="x:Int32"   x:Key="in_RequiredBloodUnits">[in_RequiredBloodUnits]</InArgument>
-            <InArgument x:TypeArguments="x:String"  x:Key="in_DBPath">[in_DBPath]</InArgument>
-          
-            <OutArgument x:TypeArguments="x:Boolean" x:Key="v_Success">[v_Success]</OutArgument>
-            <OutArgument x:TypeArguments="x:String"  x:Key="v_FailureReason">[v_FailureReason]</OutArgument>
-          </ui:InvokeCode.Arguments>
-        </ui:InvokeCode>
+          <Assign DisplayName="Success">
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_ReservationSuccess]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
       </TryCatch.Try>
       <TryCatch.Catches>
         <Catch x:TypeArguments="s:Exception">
           <ActivityAction x:TypeArguments="s:Exception">
             <ActivityAction.Argument>
-              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Reserve" />
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_R" />
             </ActivityAction.Argument>
-            <Sequence>
-              <ui:LogMessage Level="Error"
-                Message="[&quot;[ReserveResources] SE-001 Reservation exception for CaseId=&quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_Reserve.Message]" />
+            <Sequence DisplayName="Compensate / rollback">
               <Assign>
-                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Success]</OutArgument></Assign.To>
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_ReservationSuccess]</OutArgument></Assign.To>
                 <Assign.Value><InArgument x:TypeArguments="x:Boolean">[False]</InArgument></Assign.Value>
               </Assign>
               <Assign>
-                <Assign.To><OutArgument x:TypeArguments="x:String">[v_FailureReason]</OutArgument></Assign.To>
-                <Assign.Value><InArgument x:TypeArguments="x:String">["SE-001: " &amp; ex_Reserve.Message]</InArgument></Assign.Value>
+                <Assign.To><OutArgument x:TypeArguments="x:String">[out_FailureReason]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[ex_R.Message]</InArgument></Assign.Value>
               </Assign>
+              <If DisplayName="Undo blood?" Condition="[v_BloodDone]">
+                <If.Then>
+                  <Sequence>
+                    <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BLOOD_INVENTORY.psv&quot;)]" Content="[v_Blood]" />
+                    <Assign>
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Blood]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Blood.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_BloodGroup &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), (CInt(l.Trim().Split("|"c)(1)) + in_RequiredBloodUnits).ToString(), l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BLOOD_INVENTORY.psv&quot;)]" Text="[v_Blood]" />
+                  </Sequence>
+                </If.Then>
+              </If>
+              <If DisplayName="Undo ventilator?" Condition="[v_VentDone]">
+                <If.Then>
+                  <Sequence>
+                    <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Content="[v_Vents]" />
+                    <Assign>
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Vents]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Vents.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_VentilatorId &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), "Available", l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;VENTILATORS.psv&quot;)]" Text="[v_Vents]" />
+                  </Sequence>
+                </If.Then>
+              </If>
+              <If DisplayName="Undo bed?" Condition="[v_BedDone]">
+                <If.Then>
+                  <Sequence>
+                    <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+                    <Assign>
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Beds]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_BedId &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "Available", l.Trim().Split("|"c)(4), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;BEDS.psv&quot;)]" Text="[v_Beds]" />
+                  </Sequence>
+                </If.Then>
+              </If>
+              <TryCatch DisplayName="Undo theatre and release care team (best effort)">
+                <TryCatch.Try>
+                  <Sequence>
+                    <If DisplayName="Undo theatre?" Condition="[in_TheatreId &lt;&gt; &quot;&quot; AndAlso in_TheatreId &lt;&gt; &quot;N/A&quot;]">
+                      <If.Then>
+                        <Sequence>
+                          <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OPERATING_THEATRES.psv&quot;)]" Content="[v_Ot]" />
+                          <Assign>
+                            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Ot]</OutArgument></Assign.To>
+                            <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Ot.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_TheatreId &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "Available", v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                          </Assign>
+                          <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OPERATING_THEATRES.psv&quot;)]" Text="[v_Ot]" />
+                          <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OT_SCHEDULE.psv&quot;)]" Content="[v_Sched]" />
+                          <Assign>
+                            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Sched]</OutArgument></Assign.To>
+                            <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Sched.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(in_OtSlotId &amp; "|"), String.Join("|", l.Trim().Split("|"c).Take(7)) &amp; "|Cancelled", l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                          </Assign>
+                          <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;OT_SCHEDULE.psv&quot;)]" Text="[v_Sched]" />
+                        </Sequence>
+                      </If.Then>
+                    </If>
+                    <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]" Content="[v_Da]" />
+                    <Assign DisplayName="Collect released doctor ids">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_RelIds]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">["|" &amp; String.Join("|", v_Da.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 7 AndAlso a(1).Trim() = in_CaseId AndAlso a(6).Trim() = "Assigned").Select(Function(a) a(2).Trim())) &amp; "|"]</InArgument></Assign.Value>
+                    </Assign>
+                    <Assign DisplayName="Mark assignments Released">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Da]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Da.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 7 AndAlso l.Trim().Split("|"c)(1).Trim() = in_CaseId AndAlso l.Trim().Split("|"c)(6).Trim() = "Assigned", String.Join("|", l.Trim().Split("|"c).Take(6)) &amp; "|Released", l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]" Text="[v_Da]" />
+                    <ui:ReadTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTORS.psv&quot;)]" Content="[v_Doc]" />
+                    <Assign DisplayName="Decrement doctor load for released">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Doc]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Doc.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).First().Trim() &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_Doc.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) If(v_RelIds.Contains("|" &amp; l.Trim().Split("|"c)(0).Trim() &amp; "|"), String.Join("|", l.Trim().Split("|"c).Take(9)) &amp; "|" &amp; Math.Max(0, CInt(l.Trim().Split("|"c)(9).Trim()) - 1).ToString() &amp; "|" &amp; String.Join("|", l.Trim().Split("|"c).Skip(10)), l.Trim())))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:WriteTextFile FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DOCTORS.psv&quot;)]" Text="[v_Doc]" />
+                  </Sequence>
+                </TryCatch.Try>
+                <TryCatch.Catches>
+                  <Catch x:TypeArguments="s:Exception">
+                    <ActivityAction x:TypeArguments="s:Exception">
+                      <ActivityAction.Argument>
+                        <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_C" />
+                      </ActivityAction.Argument>
+                      <ui:LogMessage DisplayName="Log: care-team/theatre undo warn" Level="Warn"
+                        Message="[&quot;[ReserveResources] &quot; &amp; in_CaseId &amp; &quot;  - non-fatal: care-team/theatre release issue: &quot; &amp; ex_C.Message]" />
+                    </ActivityAction>
+                  </Catch>
+                </TryCatch.Catches>
+              </TryCatch>
+              <ui:LogMessage DisplayName="Log: rolled back" Level="Warn"
+                Message="[&quot;[ReserveResources] &quot; &amp; in_CaseId &amp; &quot;  - FAILED, rolled back (bed/vent/blood/theatre/care-team): &quot; &amp; ex_R.Message]" />
             </Sequence>
           </ActivityAction>
         </Catch>
       </TryCatch.Catches>
     </TryCatch>
 
-    <ui:LogMessage DisplayName="Log: Reservation Result" Level="Info"
-      Message="[&quot;[ReserveResources] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Success=&quot; &amp; v_Success &amp; If(Not v_Success, &quot; Reason=&quot; &amp; v_FailureReason, &quot;&quot;)]" />
-
-    <Assign DisplayName="Set out_ReservationSuccess">
-      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_ReservationSuccess]</OutArgument></Assign.To>
-      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Success]</InArgument></Assign.Value>
-    </Assign>
-    <Assign DisplayName="Set out_FailureReason">
-      <Assign.To><OutArgument x:TypeArguments="x:String">[out_FailureReason]</OutArgument></Assign.To>
-      <Assign.Value><InArgument x:TypeArguments="x:String">[v_FailureReason]</InArgument></Assign.Value>
-    </Assign>
+    <ui:LogMessage DisplayName="Log: reservation result" Level="Info"
+      Message="[&quot;[ReserveResources] &quot; &amp; in_CaseId &amp; &quot;  - success=&quot; &amp; out_ReservationSuccess &amp; If(Not out_ReservationSuccess, &quot; reason=&quot; &amp; out_FailureReason, &quot;&quot;)]" />
   </Sequence>
 </Activity>

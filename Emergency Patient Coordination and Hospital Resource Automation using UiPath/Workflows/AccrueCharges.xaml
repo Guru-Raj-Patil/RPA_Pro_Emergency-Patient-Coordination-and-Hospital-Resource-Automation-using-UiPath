@@ -1,0 +1,184 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_AccrueCharges"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="out_ChargesAdded" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="AccrueCharges" sap2010:WorkflowViewState.IdRef="Sequence_AC">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmRaw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Adm" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Idx" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_F" />
+      <Variable x:TypeArguments="x:String" Name="v_CaseId" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId" />
+      <Variable x:TypeArguments="x:String" Name="v_DocId" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ExpStay" />
+      <Variable x:TypeArguments="x:String" Name="v_BillRaw" />
+      <Variable x:TypeArguments="x:Int32" Name="v_DaysBilled" />
+      <Variable x:TypeArguments="x:Int32" Name="v_NextDay" />
+      <Variable x:TypeArguments="x:String" Name="v_Beds" />
+      <Variable x:TypeArguments="x:String" Name="v_BedType" />
+      <Variable x:TypeArguments="x:Int32" Name="v_BedRate" />
+      <Variable x:TypeArguments="x:Int32" Name="v_CasesTouched" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName), &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: accrual start" Level="Info"
+      Message="[&quot;[AccrueCharges] Scheduled charge run against &quot; &amp; v_Db]" />
+
+    <TryCatch DisplayName="Read ADMISSIONS.psv">
+      <TryCatch.Try>
+        <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_AdmRaw]" />
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_A" />
+            </ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-005"
+              Exception="[New Exception(&quot;SE-005: AccrueCharges could not read ADMISSIONS.psv: &quot; &amp; ex_A.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Currently admitted rows">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Adm]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 8 AndAlso l.Split("|"c)(7).Trim() = "Admitted").ToList()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Reset counters">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_CasesTouched]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
+    </Assign>
+    <Assign>
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_ChargesAdded]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
+    </Assign>
+
+    <While DisplayName="Each admitted case" Condition="[v_Idx &lt; v_Adm.Count]">
+      <Sequence DisplayName="Accrue one case">
+        <Assign DisplayName="Fields">
+          <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_F]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Adm(v_Idx).Split("|"c).ToList()]</InArgument></Assign.Value>
+        </Assign>
+        <Assign DisplayName="CaseId"><Assign.To><OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(1).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign DisplayName="BedId"><Assign.To><OutArgument x:TypeArguments="x:String">[v_BedId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(3).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign DisplayName="AttendingDoctorId"><Assign.To><OutArgument x:TypeArguments="x:String">[v_DocId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(4).Trim()]</InArgument></Assign.Value></Assign>
+        <Assign DisplayName="Expected stay days (cap)">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ExpStay]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[If(v_F.Count &gt; 6 AndAlso Microsoft.VisualBasic.Information.IsNumeric(v_F(6).Trim()), CInt(v_F(6).Trim()), 10)]</InArgument></Assign.Value>
+        </Assign>
+
+        <ui:ReadTextFile DisplayName="Read BILLING.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]" Content="[v_BillRaw]" />
+        <Assign DisplayName="Bed-days already billed for this case">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_DaysBilled]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_BillRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(1).Trim() = v_CaseId AndAlso a(2).Trim() = "BedDay").Count()]</InArgument></Assign.Value>
+        </Assign>
+        <Assign DisplayName="Next billing day">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_NextDay]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_DaysBilled + 1]</InArgument></Assign.Value>
+        </Assign>
+
+        <If DisplayName="Within expected stay?" Condition="[v_NextDay &lt;= v_ExpStay]">
+          <If.Then>
+            <Sequence DisplayName="Post day charges">
+              <ui:ReadTextFile DisplayName="Read BEDS.psv"
+                FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+              <Assign DisplayName="Bed type">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_BedType]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(0).Trim() = v_BedId).Select(Function(a) a(2).Trim()).DefaultIfEmpty("Standard").First()]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Bed day rate">
+                <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_BedRate]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Int32">[If(v_BedType.Trim().ToUpper() = "PREMIUM", 8000, 4000)]</InArgument></Assign.Value>
+              </Assign>
+              <ui:AppendLine DisplayName="Billing: bed day N"
+                FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]"
+                Text="[String.Join(&quot;|&quot;, New String() {&quot;BIL-&quot; &amp; v_CaseId &amp; &quot;-BED&quot; &amp; v_NextDay.ToString(), v_CaseId, &quot;BedDay&quot;, &quot;Bed &quot; &amp; v_BedId &amp; &quot; (&quot; &amp; v_BedType &amp; &quot;) - day &quot; &amp; v_NextDay.ToString(), &quot;1&quot;, v_BedRate.ToString(), v_BedRate.ToString(), v_Now})]" />
+              <ui:AppendLine DisplayName="Billing: doctor review day N"
+                FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]"
+                Text="[String.Join(&quot;|&quot;, New String() {&quot;BIL-&quot; &amp; v_CaseId &amp; &quot;-DOC&quot; &amp; v_NextDay.ToString(), v_CaseId, &quot;DoctorFee&quot;, &quot;Attending review &quot; &amp; v_DocId &amp; &quot; - day &quot; &amp; v_NextDay.ToString(), &quot;1&quot;, &quot;1500&quot;, &quot;1500&quot;, v_Now})]" />
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: CHARGES_ACCRUED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Action">["CHARGES_ACCRUED"]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Day " &amp; v_NextDay.ToString() &amp; " charges posted: bed " &amp; v_BedRate.ToString() &amp; " + attending review 1500 (INR)"]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot (scheduled)"]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Lifecycle: IN_TREATMENT" UnSafe="False" WorkflowFileName="Workflows\SetCaseStatus.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">["IN_TREATMENT"]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">["Under treatment - day " &amp; v_NextDay.ToString() &amp; " charges accruing"]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:Int32">[v_CasesTouched]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Int32">[v_CasesTouched + 1]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:Int32">[out_ChargesAdded]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Int32">[out_ChargesAdded + 2]</InArgument></Assign.Value></Assign>
+            </Sequence>
+          </If.Then>
+          <If.Else>
+            <ui:LogMessage DisplayName="Log: at stay cap" Level="Info"
+              Message="[&quot;[AccrueCharges] &quot; &amp; v_CaseId &amp; &quot; has reached expected stay (&quot; &amp; v_ExpStay.ToString() &amp; &quot; days) - no further accrual without review&quot;]" />
+          </If.Else>
+        </If>
+
+        <Assign DisplayName="Next">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Idx]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Idx + 1]</InArgument></Assign.Value>
+        </Assign>
+      </Sequence>
+    </While>
+
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["AccrueCharges: " &amp; v_Adm.Count.ToString() &amp; " admitted case(s), " &amp; v_CasesTouched.ToString() &amp; " billed this run, " &amp; out_ChargesAdded.ToString() &amp; " charge line(s) added"]</InArgument></Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: accrual done" Level="Info" Message="[out_Summary]" />
+  </Sequence>
+</Activity>

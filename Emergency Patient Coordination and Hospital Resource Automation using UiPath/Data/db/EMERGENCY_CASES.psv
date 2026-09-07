@@ -1,0 +1,9 @@
+CaseId|PatientId|CaseStatus|DocumentStatus|BedStatus|VentilatorStatus|BloodStatus|ReadinessPercentage|PendingAction|CreatedAt|UpdatedAt
+ER1024|P1024|Approved|Complete|Reserved|Reserved|Reserved|100|None|2026-09-06 16:24:54|2026-09-06 16:24:54
+ER1025|P1025|PENDING_DOCUMENTATION|Incomplete|Available|Not_Required|Available|75|Complete document verification|2026-09-06 16:24:56|2026-09-06 16:24:56
+ER1026|P1026|Approved|Complete|Reserved|Reserved|Reserved|100|None|2026-09-06 16:24:58|2026-09-06 16:24:58
+ER1027|P1027|PENDING_BED|Complete|Unavailable|Unavailable|Available|50|Locate available bed; Locate available ventilator|2026-09-06 16:25:00|2026-09-06 16:25:00
+ER1028|P1028|PENDING_BED|Complete|Unavailable|Unavailable|Unavailable|25|Locate available bed; Locate available ventilator; Secure blood inventory|2026-09-06 16:25:02|2026-09-06 16:25:02
+ER1029|P1029|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-06 16:25:03|2026-09-06 16:25:03
+ER1030|P1030|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-06 16:25:05|2026-09-06 16:25:05
+ER1031|P1031|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-06 16:25:08|2026-09-06 16:25:08

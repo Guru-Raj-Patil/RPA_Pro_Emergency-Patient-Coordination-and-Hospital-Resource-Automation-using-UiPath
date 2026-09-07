@@ -1,0 +1,101 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Framework_Initialization"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_Config" Type="InArgument(x:Object)" />
+    <x:Property Name="out_DbFolder" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="Initialization" sap2010:WorkflowViewState.IdRef="Sequence_INIT">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:String)" Name="v_Cfg" />
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_DbFolder" />
+      <Variable x:TypeArguments="x:String" Name="v_NotifDir" />
+      <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: initialising" Level="Info"
+      Message="[&quot;[Init] Emergency Patient Coordination System initialising...&quot;]" />
+
+    <Assign DisplayName="Cast config">
+      <Assign.To><OutArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[v_Cfg]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[CType(in_Config, Dictionary(Of String, String))]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Cfg("ProjectRoot")]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Datastore folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_DbFolder]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, If(v_Cfg.ContainsKey("DbFolder"), v_Cfg("DbFolder"), "Data\db"))]</InArgument></Assign.Value>
+    </Assign>
+
+    <If DisplayName="Datastore folder exists?" Condition="[Not System.IO.Directory.Exists(v_DbFolder)]">
+      <If.Then>
+        <Throw DisplayName="Throw: datastore missing"
+          Exception="[New System.IO.DirectoryNotFoundException(&quot;[Init] Datastore folder not found: &quot; &amp; v_DbFolder &amp; &quot;. Expected Data\db\*.psv files.&quot;)]" />
+      </If.Then>
+    </If>
+
+    <If DisplayName="PATIENTS.psv exists?" Condition="[Not System.IO.File.Exists(System.IO.Path.Combine(v_DbFolder, &quot;PATIENTS.psv&quot;))]">
+      <If.Then>
+        <Throw DisplayName="Throw: PATIENTS.psv missing"
+          Exception="[New System.IO.FileNotFoundException(&quot;[Init] PATIENTS.psv not found in &quot; &amp; v_DbFolder)]" />
+      </If.Then>
+    </If>
+
+    <If DisplayName="Reset datastore on start?" Condition="[v_Cfg.ContainsKey(&quot;ResetDatastoreOnStart&quot;) AndAlso v_Cfg(&quot;ResetDatastoreOnStart&quot;).Trim().ToLower() = &quot;true&quot;]">
+      <If.Then>
+        <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="ResetDatastore" UnSafe="False" WorkflowFileName="Workflows\ResetDatastore.xaml">
+          <ui:InvokeWorkflowFile.Arguments>
+            <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+          </ui:InvokeWorkflowFile.Arguments>
+        </ui:InvokeWorkflowFile>
+      </If.Then>
+    </If>
+
+    <Assign DisplayName="Notifications dir">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_NotifDir]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, If(v_Cfg.ContainsKey("EmailOutputFolder"), v_Cfg("EmailOutputFolder"), "Data\Notifications"))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Ensure Notifications dir">
+      <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.IO.Directory.CreateDirectory(v_NotifDir)]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Set out_DbFolder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_DbFolder]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_DbFolder]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: init complete" Level="Info"
+      Message="[&quot;[Init] Ready. Datastore: &quot; &amp; v_DbFolder]" />
+  </Sequence>
+</Activity>

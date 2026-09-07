@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emergency Coordination Console</title>
+<style>
+  :root{
+    --navy:#004687; --navy-d:#00325f; --teal:#0a9396;
+    --ink:#1f2733; --muted:#5f6b7a; --line:#e3e8ef;
+    --bg:#eef1f5; --card:#ffffff;
+    --green:#2e7d32; --green-b:#e8f5e9;
+    --amber:#b9770e; --amber-b:#fff4e0;
+    --orange:#d35400; --orange-b:#fdecdd;
+    --red:#c62828;   --red-b:#fdecea;
+    --blue:#1565c0;  --blue-b:#e7f0fb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+  a{color:var(--navy)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+
+  header.top{background:linear-gradient(120deg,var(--navy),var(--navy-d));color:#fff;
+    border-radius:12px;padding:22px 24px;box-shadow:0 4px 14px rgba(0,50,95,.18)}
+  header.top h1{margin:0;font-size:21px;letter-spacing:.2px}
+  header.top .sub{margin-top:5px;font-size:13px;opacity:.9}
+  header.top .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:5px 12px;font-size:12px}
+  .pill b{font-weight:600}
+  .btn{cursor:pointer;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);
+    color:#fff;border-radius:8px;padding:6px 12px;font-size:12px}
+  .btn:hover{background:rgba(255,255,255,.2)}
+
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    margin:30px 4px 12px;font-weight:700}
+
+  .grid{display:grid;gap:14px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .charts{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    box-shadow:0 1px 3px rgba(20,40,70,.05)}
+  .kpi .label{font-size:12px;color:var(--muted);font-weight:600}
+  .kpi .value{font-size:28px;font-weight:700;margin-top:6px;line-height:1}
+  .kpi .foot{font-size:12px;color:var(--muted);margin-top:6px}
+  .kpi.good .value{color:var(--green)} .kpi.warn .value{color:var(--amber)}
+  .kpi.bad .value{color:var(--red)} .kpi.info .value{color:var(--navy)}
+
+  .card h3{margin:0 0 12px;font-size:14px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:12px;color:var(--muted)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  /* pipeline stepper */
+  .steps{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+  .steps .step{flex:1 1 110px;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;position:relative;min-width:110px}
+  .steps .step .n{font-size:11px;color:var(--navy);font-weight:700}
+  .steps .step .t{font-size:12.5px;font-weight:600;margin-top:3px}
+  .steps .step .d{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* bars */
+  .bar-row{display:grid;grid-template-columns:120px 1fr 54px;align-items:center;gap:10px;margin:8px 0}
+  .bar-row .bl{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{background:#eef2f7;border-radius:6px;height:16px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px}
+  .bar-val{font-size:12px;font-weight:600;text-align:right}
+
+  .stack{display:flex;height:20px;border-radius:6px;overflow:hidden;background:#eef2f7;margin:6px 0}
+  .stack span{display:block}
+  .stack-row{margin:12px 0}
+  .stack-row .lab{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);background:#f8fafc;position:sticky;top:0}
+  tbody tr:hover{background:#f6f9fc}
+  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+  .t-green{background:var(--green-b);color:var(--green)}
+  .t-amber{background:var(--amber-b);color:var(--amber)}
+  .t-orange{background:var(--orange-b);color:var(--orange)}
+  .t-red{background:var(--red-b);color:var(--red)}
+  .t-blue{background:var(--blue-b);color:var(--blue)}
+  .t-grey{background:#eceff3;color:var(--muted)}
+  .mini{height:8px;border-radius:5px;background:#eef2f7;overflow:hidden;min-width:70px}
+  .mini > i{display:block;height:100%}
+
+  .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .scroll table th{top:0}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .chip{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted)}
+  .chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+  /* audit timeline */
+  .tl{position:relative;padding-left:20px}
+  .tl:before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl .ev{position:relative;margin:10px 0}
+  .tl .ev:before{content:"";position:absolute;left:-17px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 0 0 2px var(--line)}
+  .tl .ev .h{font-size:12px;color:var(--muted)}
+  .tl .ev .b{font-size:13px}
+  .code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px}
+
+  footer{margin-top:36px;color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
+  .disclaimer{margin-top:16px;padding:10px 14px;background:#fff8e6;border:1px solid #f0e2b8;border-radius:10px;color:#7a5c12}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin:16px 2px 4px}
+  .tab-btn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--muted);
+    border-radius:10px 10px 0 0;padding:10px 20px;font-size:13.5px;font-weight:600;border-bottom:none}
+  .tab-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .live .dot{width:8px;height:8px;border-radius:50%;background:#7fe0a6;box-shadow:0 0 0 3px rgba(127,224,166,.3)}
+  .live.off .dot{background:#c9d2dc;box-shadow:none}
+  /* patient (Patient Intake) view trims operational chrome from the header */
+  .patient-only{display:none}
+  body.patient-view .ops-only{display:none!important}
+  body.patient-view .patient-only{display:block}
+
+  /* intake / user forms */
+  .userwrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.userwrap{grid-template-columns:1fr}}
+  .field{margin:9px 0}
+  .field label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px}
+  .field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+    font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
+  .field.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .uploads{display:flex;flex-direction:column;gap:8px}
+  .uploads .up{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;font-size:12.5px;
+    color:var(--ink);background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .uploads .up span{color:var(--muted);font-weight:600}
+  .uploads .up input[type=file]{font-size:12px;width:100%}
+  .btn-primary{cursor:pointer;border:none;background:var(--navy);color:#fff;border-radius:9px;
+    padding:10px 18px;font-size:13.5px;font-weight:600;margin-top:6px}
+  .btn-primary:hover{background:var(--navy-d)}
+  .btn-ghost{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:8px;padding:7px 12px;font-size:12.5px}
+  .result{margin-top:12px;padding:12px 14px;border-radius:9px;font-size:13px;border:1px solid var(--line)}
+  .result.ok{background:var(--green-b);border-color:#bfe3c4;color:#215c28}
+  .result.err{background:var(--red-b);border-color:#f2c9c6;color:#8a231e}
+  .result.hint{background:#eef4fb;border-color:#cfe0f3;color:#25486e}
+  .card-note{font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.5}
+  .statlist{display:flex;flex-direction:column}
+  .stathead{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+    font-weight:700;margin:14px 0 2px;padding:0 4px}
+  #a-beds.statlist .stathead{margin-top:0}
+  .statrow{display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid var(--line)}
+  .statrow .ic{flex:none;width:34px;height:34px;border-radius:9px;background:var(--navy);
+    display:flex;align-items:center;justify-content:center}
+  .statrow .ic svg{width:18px;height:18px;fill:#fff;display:block}
+  .statrow .lb{flex:1;min-width:0;font-size:12.5px;color:var(--ink);line-height:1.3}
+  .statrow .lb small{display:block;font-size:11px;color:var(--muted);margin-top:1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .statrow .vl{flex:none;font-size:16px;font-weight:700;color:var(--ink);white-space:nowrap}
+  .statrow .vl.ok{color:var(--green)}
+  .statrow .vl.bad{color:var(--red)}
+  #t-queue td{padding:12px 12px;font-size:13px}
+  .userrow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.userrow{grid-template-columns:1fr}}
+  .userrow > section{display:flex;flex-direction:column;min-width:0}
+  .userrow > section > .card{flex:1;display:flex;flex-direction:column}
+  .userrow > section > .card > .scroll{flex:1}
+  /* hover explainer */
+  .tip{position:relative;cursor:help}
+  .tip:hover::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 8px);z-index:30;
+    width:max-content;max-width:230px;white-space:normal;background:var(--ink);color:#fff;
+    font-size:11.5px;font-weight:400;line-height:1.45;letter-spacing:0;text-transform:none;
+    padding:8px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(15,30,50,.22)}
+  .tip:hover::before{content:"";position:absolute;left:16px;top:calc(100% + 2px);z-index:30;
+    border:6px solid transparent;border-bottom-color:var(--ink)}
+  @media(max-width:600px){.tip:hover::after{left:auto;right:0}.tip:hover::before{left:auto;right:16px}}
+
+  /* episode extension */
+  .t-teal{background:#d5efef;color:var(--teal)}
+  .steps .step.gate{background:#fff4e0;border-color:#f0d9a8}
+  .steps .step.gate .n{color:var(--amber)}
+  .steps .step .g{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.6px;
+    color:#fff;background:var(--amber);border-radius:4px;padding:1px 5px}
+  .steps .step.auto .n{color:var(--teal)}
+  .loadbar{height:7px;border-radius:5px;background:#eef2f7;overflow:hidden;flex:none;width:88px}
+  .loadbar>i{display:block;height:100%;background:var(--navy)}
+  .loadbar.hi>i{background:var(--red)}
+
+  @media print{
+    body{background:#fff}
+    .btn,.chips,.chip,.tabs,.btn-primary,.btn-ghost{display:none}
+    .card,header.top{box-shadow:none}
+    .scroll{max-height:none;overflow:visible}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1 id="h-title">Emergency Coordination Console</h1>
+    <div class="sub ops-only">Coordination of emergency admissions &bull; documents, beds, ventilators and blood in one view</div>
+    <div class="sub patient-only">Check what the hospital has free right now and request an emergency admission</div>
+    <div class="meta">
+      <span class="pill">Hospital: <b id="m-hosp">&mdash;</b></span>
+      <span class="pill ops-only">Updated: <b id="m-gen">&mdash;</b></span>
+      <span class="pill ops-only">Active cases: <b id="m-cases">&mdash;</b></span>
+      <span class="pill live off ops-only" id="live-pill"><span class="dot"></span><span id="live-text">Snapshot</span></span>
+      <button class="btn ops-only" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn" id="btn-reload" onclick="location.reload()">Refresh</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="ops">Operations</button>
+    <button class="tab-btn" data-tab="user">Patient Intake</button>
+  </div>
+
+  <div id="tab-ops">
+
+  <h2 class="sec">How each emergency episode is automated</h2>
+  <div class="card">
+    <p class="card-note">Every step below is performed by the RPA bot. Only the two amber
+      <b>HUMAN</b> steps need a person &mdash; a doctor's sign-off. Everything else, intake to
+      discharge, is unattended coordination across the hospital's systems.</p>
+    <div class="steps">
+      <div class="step auto"><div class="n">01</div><div class="t">Verify documents</div><div class="d">ID, insurance, consent, medical report</div></div>
+      <div class="step auto"><div class="n">02</div><div class="t">Check bed</div><div class="d">Department, ventilator-linked where needed</div></div>
+      <div class="step auto"><div class="n">03</div><div class="t">Check ventilator</div><div class="d">Allocated with the ICU bed</div></div>
+      <div class="step auto"><div class="n">04</div><div class="t">Check blood</div><div class="d">Group and units against inventory</div></div>
+      <div class="step auto"><div class="n">05</div><div class="t">Assign care team</div><div class="d">On-call consultant by load; + surgeon &amp; anaesthetist if surgical</div></div>
+      <div class="step auto"><div class="n">06</div><div class="t">Readiness score</div><div class="d">Four checks, 25% each</div></div>
+      <div class="step auto"><div class="n">07</div><div class="t">Consolidated status</div><div class="d">One case summary</div></div>
+      <div class="step gate"><div class="n">08</div><div class="t">Approve admission</div><div class="d">Authorised sign-off before any resource is committed</div><span class="g">HUMAN</span></div>
+      <div class="step auto"><div class="n">09</div><div class="t">Book theatre</div><div class="d">Operating-theatre slot for surgical cases</div></div>
+      <div class="step auto"><div class="n">10</div><div class="t">Reserve resources</div><div class="d">Bed, ventilator, blood, doctor, OT &mdash; rollback on failure</div></div>
+      <div class="step auto"><div class="n">11</div><div class="t">Confirm admission</div><div class="d">Bed occupied, billing account opened</div></div>
+      <div class="step auto"><div class="n">12</div><div class="t">Accrue charges</div><div class="d">Bed &amp; doctor fees every day, unattended</div></div>
+      <div class="step gate"><div class="n">13</div><div class="t">Certify discharge</div><div class="d">Attending doctor confirms the patient is fit to leave</div><span class="g">HUMAN</span></div>
+      <div class="step auto"><div class="n">14</div><div class="t">Process discharge</div><div class="d">Final bill, insurance claim, discharge summary, free resources</div></div>
+      <div class="step auto"><div class="n">15</div><div class="t">Follow-up &amp; close</div><div class="d">Reminder to patient &amp; GP, episode closed</div></div>
+    </div>
+  </div>
+
+  <h2 class="sec">Key metrics</h2>
+  <div class="grid kpis" id="kpis"></div>
+
+  <h2 class="sec">Case outcomes &amp; readiness</h2>
+  <div class="grid charts">
+    <div class="card"><h3>Case outcome breakdown</h3><div id="c-outcome"></div></div>
+    <div class="card"><h3>Readiness score by case</h3><div id="c-readiness"></div></div>
+  </div>
+
+  <h2 class="sec">Hospital resource position</h2>
+  <div class="grid charts">
+    <div class="card"><h3>Beds by department</h3><div id="c-beds"></div>
+      <div class="legend">
+        <span><i style="background:#9aa7b5"></i>Occupied</span>
+        <span><i style="background:var(--blue)"></i>Reserved (this run)</span>
+        <span><i style="background:var(--green)"></i>Available</span>
+      </div>
+    </div>
+    <div class="card"><h3>Blood inventory vs minimum threshold</h3><div id="c-blood"></div>
+      <div class="legend"><span><i style="background:var(--red)"></i>At / below threshold</span>
+        <span><i style="background:var(--teal)"></i>Above threshold</span>
+        <span><i style="background:#c62828"></i>&#9644; threshold marker</span></div>
+    </div>
+    <div class="card"><h3>Ventilator fleet</h3><div id="c-vents"></div></div>
+    <div class="card"><h3>Resources reserved this run</h3><div id="c-resv"></div></div>
+  </div>
+
+  <h2 class="sec">Care team &amp; operating theatres</h2>
+  <div class="grid charts">
+    <div class="card"><h3>On-call roster &amp; load</h3><div id="c-roster"></div></div>
+    <div class="card"><h3>Operating theatres</h3><div id="c-theatres"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Care team assigned this run</h3>
+    <div class="scroll" style="max-height:300px">
+      <table id="t-careteam">
+        <thead><tr><th>Case</th><th>Role</th><th>Doctor</th><th>Specialty</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Admissions, billing &amp; discharge</h2>
+  <div class="grid kpis" id="episode-kpis"></div>
+  <div class="grid charts" style="margin-top:14px">
+    <div class="card"><h3>Episode stage</h3><div id="c-episode"></div></div>
+    <div class="card"><h3>Billing by category (&#8377;)</h3><div id="c-billing"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Admissions &amp; discharges</h3>
+    <div class="scroll" style="max-height:320px">
+      <table id="t-adm">
+        <thead><tr><th>Case</th><th>Patient</th><th>Bed</th><th>Attending</th><th>Admitted</th><th>Stage</th><th>Bill</th><th>Discharged</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Emergency case register</h2>
+  <div class="card">
+    <div id="await-banner"></div>
+    <div class="chips" id="case-chips"></div>
+    <div class="scroll">
+      <table id="t-cases">
+        <thead><tr>
+          <th>Case</th><th>Patient</th><th>Type</th><th>Dept</th>
+          <th>Docs</th><th>Bed</th><th>Vent</th><th>Blood</th>
+          <th>Readiness</th><th>Status</th><th>Pending action</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Resource reservations ledger</h2>
+  <div class="card">
+    <div class="scroll">
+      <table id="t-resv">
+        <thead><tr><th>Case</th><th>Resource type</th><th>Resource ID</th><th>Qty</th><th>Status</th><th>Reserved at</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Audit trail</h2>
+  <div class="card">
+    <div class="chips" id="audit-chips"></div>
+    <div class="scroll" style="padding:14px 16px">
+      <div class="tl" id="audit-tl"></div>
+    </div>
+  </div>
+
+  </div><!-- /tab-ops -->
+
+  <div id="tab-user" hidden>
+
+    <div class="userrow">
+      <section>
+        <h2 class="sec">Available right now</h2>
+        <div class="card">
+          <p class="card-note">A live snapshot of what the hospital can offer a new emergency
+            patient this moment.</p>
+          <div class="statlist" id="a-beds"></div>
+          <div class="statlist" id="a-other"></div>
+        </div>
+      </section>
+      <section>
+        <h2 class="sec">Your admission requests</h2>
+        <div class="card">
+          <p class="card-note">Only the requests you send from this device show here. Each one
+            gets a reference such as <b class="code">ER1032</b>. <b>Waiting</b> &mdash; the
+            coordination team has not started it yet. <b>Processed</b> &mdash; a bed, ventilator
+            and blood have been checked and set aside where needed.</p>
+          <div class="scroll">
+            <table id="t-queue">
+              <thead><tr><th>Reference</th><th>State</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <h2 class="sec">New emergency admission</h2>
+    <div class="card">
+      <div class="userwrap">
+        <div>
+          <div class="field"><label>Patient name</label><input id="f-name" placeholder="Full name" /></div>
+          <div class="field row2">
+            <div><label>Age</label><input id="f-age" type="number" min="0" max="120" placeholder="Years" /></div>
+            <div><label>Gender</label><select id="f-gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+          </div>
+          <div class="field row2">
+            <div><label>Emergency type</label><select id="f-type"><option>Critical</option><option>Urgent</option><option>Standard</option></select></div>
+            <div><label>Department</label><select id="f-dept"><option>ICU</option><option>General</option><option>Cardiology</option></select></div>
+          </div>
+          <div class="field row2">
+            <div><label>Blood group</label><select id="f-bg"><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select></div>
+            <div><label>Blood units required</label><input id="f-units" type="number" min="0" max="20" value="0" /></div>
+          </div>
+          <div class="field"><label><input type="checkbox" id="f-vent" style="width:auto;margin-right:6px" />Ventilator required</label></div>
+          <div class="field"><label>Notes (optional)</label><input id="f-notes" placeholder="Anything the coordinating team should know" /></div>
+        </div>
+        <div>
+          <div class="field"><label>Supporting documents &mdash; PDF or image</label>
+            <div class="uploads">
+              <label class="up"><span>ID proof</span><input type="file" class="f-file" data-doc="ID_Proof" accept=".pdf,.png,.jpg,.jpeg" /></label>
+              <label class="up"><span>Insurance</span><input type="file" class="f-file" data-doc="Insurance" accept=".pdf,.png,.jpg,.jpeg" /></label>
+              <label class="up"><span>Consent form</span><input type="file" class="f-file" data-doc="Consent_Form" accept=".pdf,.png,.jpg,.jpeg" /></label>
+              <label class="up"><span>Medical report</span><input type="file" class="f-file" data-doc="Medical_Report" accept=".pdf,.png,.jpg,.jpeg" /></label>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">Attach what is available. Anything left blank is recorded as pending.</div>
+          </div>
+          <button class="btn-primary" id="f-submit">Submit admission</button>
+          <div id="f-result"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-user -->
+
+  <footer>
+    <div id="foot-line">Emergency Coordination Console &bull; <span id="foot-hosp"></span></div>
+    <div class="disclaimer">Administrative coordination only &mdash; all clinical and admission decisions remain with authorised medical staff.</div>
+  </footer>
+
+</div>
+
+<!-- ===== DATA INJECTED BY GenerateDashboard.xaml (raw-text script blocks; not executed) ===== -->
+<script id="d-meta"    type="text/plain"><!--RPA_META--></script>
+<script id="d-cases"   type="text/plain"><!--RPA_CASES--></script>
+<script id="d-patients" type="text/plain"><!--RPA_PATIENTS--></script>
+<script id="d-beds"    type="text/plain"><!--RPA_BEDS--></script>
+<script id="d-vents"   type="text/plain"><!--RPA_VENTS--></script>
+<script id="d-blood"   type="text/plain"><!--RPA_BLOOD--></script>
+<script id="d-resv"    type="text/plain"><!--RPA_RESV--></script>
+<script id="d-audit"   type="text/plain"><!--RPA_AUDIT--></script>
+<script id="d-docs"    type="text/plain"><!--RPA_DOCS--></script>
+<script id="d-input"   type="text/plain"><!--RPA_INPUT--></script>
+<script id="d-tests"   type="text/plain"><!--RPA_TESTS--></script>
+<script id="d-depts"     type="text/plain"><!--RPA_DEPTS--></script>
+<script id="d-doctors"   type="text/plain"><!--RPA_DOCTORS--></script>
+<script id="d-theatres"  type="text/plain"><!--RPA_THEATRES--></script>
+<script id="d-docassign" type="text/plain"><!--RPA_DOCASSIGN--></script>
+<script id="d-otsched"   type="text/plain"><!--RPA_OTSCHED--></script>
+<script id="d-adm"       type="text/plain"><!--RPA_ADM--></script>
+<script id="d-billing"   type="text/plain"><!--RPA_BILLING--></script>
+<script id="d-disch"     type="text/plain"><!--RPA_DISCH--></script>
+<script id="d-claims"    type="text/plain"><!--RPA_CLAIMS--></script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- parsing ---------- */
+  function raw(id){
+    var el=document.getElementById(id);
+    var t=el? (el.textContent||"") : "";
+    t=t.replace(/ /g," ").trim();
+    if(!t || t.indexOf("<!--RPA")===0) return "";
+    return t;
+  }
+  function parsePSV(id){
+    var t=raw(id); if(!t) return [];
+    var lines=t.split(/\r?\n/).map(function(s){return s.trim();}).filter(function(s){return s.length;});
+    if(lines.length<2) return [];
+    var head=lines[0].split("|").map(function(s){return s.trim();});
+    return lines.slice(1).map(function(l){
+      var c=l.split("|"), o={};
+      head.forEach(function(h,i){o[h]=(c[i]!==undefined?c[i]:"").trim();});
+      return o;
+    });
+  }
+  function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+
+  /* ---------- load ---------- */
+  var META={}; parsePSV("d-meta").forEach(function(r){ META[r.key]=r.value; });
+  var CASES = parsePSV("d-cases");
+  var PATS  = parsePSV("d-patients");
+  var BEDS  = parsePSV("d-beds");
+  var VENTS = parsePSV("d-vents");
+  var BLOOD = parsePSV("d-blood");
+  var RESV  = parsePSV("d-resv");
+  var AUDIT = parsePSV("d-audit");
+  var DOCS  = parsePSV("d-docs");
+  var INPUT = parsePSV("d-input");
+  var DEPTS    = parsePSV("d-depts");
+  var DOCTORS  = parsePSV("d-doctors");
+  var THEATRES = parsePSV("d-theatres");
+  var DOCASSIGN= parsePSV("d-docassign");
+  var OTSCHED  = parsePSV("d-otsched");
+  var ADM      = parsePSV("d-adm");
+  var BILLING  = parsePSV("d-billing");
+  var DISCH    = parsePSV("d-disch");
+  var CLAIMS   = parsePSV("d-claims");
+
+  var patById={}; PATS.forEach(function(p){ patById[p.PatientId]=p; });
+
+  var HOSP = META.hospital || "City General Hospital";
+  var LIVE = (META.mode === "live");
+  document.getElementById("m-hosp").textContent  = HOSP;
+  document.getElementById("m-gen").textContent   = META.generatedAt || new Date().toISOString().slice(0,19).replace("T"," ");
+  document.getElementById("m-cases").textContent = META.totalCases || CASES.length;
+  var fh = document.getElementById("foot-hosp"); if(fh) fh.textContent = HOSP;
+
+  /* ---------- classification ---------- */
+  function bucket(cs){
+    var s=(cs||"").toUpperCase();
+    if(s==="APPROVED") return "Approved";
+    if(["ADMITTED","IN_TREATMENT","FIT_FOR_DISCHARGE","DISCHARGED","CLOSED"].indexOf(s)>=0) return "Approved";
+    if(s==="REJECTED") return "Rejected";
+    if(s==="ERROR") return "Error";
+    if(s.indexOf("PENDING_DOC")===0) return "Pending: documents";
+    if(s.indexOf("PENDING_BED")===0) return "Pending: bed";
+    if(s.indexOf("PENDING_BLOOD")===0) return "Pending: blood";
+    if(s.indexOf("PENDING_VENT")===0) return "Pending: ventilator";
+    if(s.indexOf("PENDING")===0) return "Pending: approval";
+    return cs||"Unknown";
+  }
+  function scoreClass(n){ return n>=100?"t-green":n>=75?"t-amber":n>=50?"t-orange":"t-red"; }
+  function scoreColor(n){ return n>=100?"#2e7d32":n>=75?"#b9770e":n>=50?"#d35400":"#c62828"; }
+  var bucketColor={
+    "Approved":"#2e7d32","Rejected":"#c62828","Error":"#c62828",
+    "Pending: documents":"#b9770e","Pending: bed":"#d35400","Pending: blood":"#c62828",
+    "Pending: ventilator":"#d35400","Pending: approval":"#1565c0","Unknown":"#9aa7b5"
+  };
+
+  /* ---------- KPIs ---------- */
+  var total=CASES.length;
+  var approved=CASES.filter(function(c){return bucket(c.CaseStatus)==="Approved";}).length;
+  var pending=CASES.filter(function(c){return bucket(c.CaseStatus).indexOf("Pending")===0;}).length;
+  var rejected=CASES.filter(function(c){var b=bucket(c.CaseStatus);return b==="Rejected"||b==="Error";}).length;
+  var avgScore = total? Math.round(CASES.reduce(function(a,c){return a+num(c.ReadinessPercentage);},0)/total) : 0;
+  var docsOk = CASES.filter(function(c){return (c.DocumentStatus||"")==="Complete";}).length;
+  var bedsReserved = RESV.filter(function(r){return r.ResourceType==="Bed";}).length;
+  var bedsTotal = BEDS.length;
+  var bloodUnits = RESV.filter(function(r){return r.ResourceType==="Blood";}).reduce(function(a,r){return a+num(r.Quantity);},0);
+  var exceptions = AUDIT.filter(function(a){return (a.Action||"")==="EXCEPTION";}).length;
+
+  var kpis=[
+    {label:"Cases processed", value:total, foot:"pending emergency requests", cls:"info"},
+    {label:"Ready &amp; resources reserved", value:approved, foot:total?Math.round(approved/total*100)+"% of cases":"", cls:"good"},
+    {label:"Held for follow-up", value:pending, foot:"missing docs / bed / blood", cls: pending?"warn":"good"},
+    {label:"Rejected / errored", value:rejected, foot:"routed to staff", cls: rejected?"bad":"good"},
+    {label:"Average readiness", value:avgScore+"%", foot:"weighted 4&times;25 score", cls: avgScore>=75?"good":avgScore>=50?"warn":"bad"},
+    {label:"Documents complete", value:docsOk+"/"+total, foot:"mandatory document set", cls: docsOk===total?"good":"warn"},
+    {label:"Beds reserved", value:bedsReserved+"/"+bedsTotal, foot:"of all hospital beds", cls:"info"},
+    {label:"Blood units reserved", value:bloodUnits, foot:"across "+RESV.filter(function(r){return r.ResourceType==="Blood";}).length+" case(s)", cls:"info"},
+    {label:"Exceptions", value:exceptions, foot:"business + system", cls: exceptions?"bad":"good"}
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(function(k){
+    return '<div class="card kpi '+k.cls+'"><div class="label">'+k.label+'</div>'+
+           '<div class="value">'+k.value+'</div><div class="foot">'+k.foot+'</div></div>';
+  }).join("");
+
+  /* ---------- chart helpers ---------- */
+  function donut(el, segs){
+    var host=document.getElementById(el);
+    var tot=segs.reduce(function(a,s){return a+s.value;},0);
+    if(!tot){ host.innerHTML='<p style="color:#5f6b7a">No data.</p>'; return; }
+    var r=52, cx=70, cy=70, circ=2*Math.PI*r, off=0, arcs="";
+    segs.forEach(function(s){
+      var frac=s.value/tot, len=frac*circ;
+      arcs+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="20" '+
+            'stroke-dasharray="'+len+' '+(circ-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 '+cx+' '+cy+')"></circle>';
+      off+=len;
+    });
+    var leg=segs.filter(function(s){return s.value>0;}).map(function(s){
+      return '<span><i style="background:'+s.color+'"></i>'+esc(s.label)+' &mdash; <b>'+s.value+'</b></span>';
+    }).join("");
+    host.innerHTML='<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">'+
+      '<svg width="140" height="140" viewBox="0 0 140 140">'+arcs+
+      '<text x="70" y="66" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2733">'+tot+'</text>'+
+      '<text x="70" y="84" text-anchor="middle" font-size="10" fill="#5f6b7a">total</text></svg>'+
+      '<div class="legend" style="margin:0;flex-direction:column;gap:6px">'+leg+'</div></div>';
+  }
+  function hbars(el, items, maxV, unit){
+    var host=document.getElementById(el);
+    if(!items.length){ host.innerHTML='<p style="color:#5f6b7a">No data.</p>'; return; }
+    var mx=maxV||Math.max.apply(null,items.map(function(i){return i.value;}))||1;
+    host.innerHTML=items.map(function(i){
+      var w=Math.max(2, i.value/mx*100);
+      return '<div class="bar-row"><div class="bl" title="'+esc(i.label)+'">'+esc(i.label)+'</div>'+
+        '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+i.color+'"></div></div>'+
+        '<div class="bar-val">'+i.value+(unit||"")+'</div></div>';
+    }).join("");
+  }
+
+  /* outcomes donut */
+  var byBucket={};
+  CASES.forEach(function(c){ var b=bucket(c.CaseStatus); byBucket[b]=(byBucket[b]||0)+1; });
+  donut("c-outcome", Object.keys(byBucket).map(function(k){
+    return {label:k, value:byBucket[k], color:bucketColor[k]||"#9aa7b5"};
+  }));
+
+  /* readiness bars */
+  hbars("c-readiness", CASES.map(function(c){
+    var p=patById[c.PatientId]||{};
+    return {label:c.CaseId+" "+(p.Name||""), value:num(c.ReadinessPercentage), color:scoreColor(num(c.ReadinessPercentage))};
+  }), 100, "%");
+
+  /* beds by department - stacked */
+  (function(){
+    var host=document.getElementById("c-beds");
+    var deps={};
+    BEDS.forEach(function(b){
+      var d=b.Department||"Other";
+      deps[d]=deps[d]||{Occupied:0,Reserved:0,Available:0,other:0};
+      var s=(b.Status||"").toLowerCase();
+      if(s==="occupied") deps[d].Occupied++;
+      else if(s==="reserved") deps[d].Reserved++;
+      else if(s==="available") deps[d].Available++;
+      else deps[d].other++;
+    });
+    var rows=Object.keys(deps).map(function(d){
+      var v=deps[d], t=v.Occupied+v.Reserved+v.Available+v.other || 1;
+      function seg(n,col){ return n? '<span style="width:'+(n/t*100)+'%;background:'+col+'"></span>':""; }
+      return '<div class="stack-row"><div class="lab"><span>'+esc(d)+'</span>'+
+        '<span>'+(v.Occupied+v.Reserved)+' / '+(v.Occupied+v.Reserved+v.Available+v.other)+' in use</span></div>'+
+        '<div class="stack">'+seg(v.Occupied,"#9aa7b5")+seg(v.Reserved,"#1565c0")+seg(v.Available,"#2e7d32")+seg(v.other,"#d7dde5")+'</div></div>';
+    }).join("");
+    host.innerHTML=rows||'<p style="color:#5f6b7a">No bed data.</p>';
+  })();
+
+  /* blood inventory */
+  (function(){
+    var host=document.getElementById("c-blood");
+    if(!BLOOD.length){ host.innerHTML='<p style="color:#5f6b7a">No blood data.</p>'; return; }
+    var mx=Math.max.apply(null,BLOOD.map(function(b){return Math.max(num(b.AvailableUnits),num(b.MinimumThreshold));}))||1;
+    host.innerHTML=BLOOD.map(function(b){
+      var av=num(b.AvailableUnits), th=num(b.MinimumThreshold);
+      var low=av<=th, col=low?"#c62828":"#0a9396";
+      var w=Math.max(2, av/mx*100), tp=th/mx*100;
+      return '<div class="bar-row"><div class="bl">'+esc(b.BloodGroup)+'</div>'+
+        '<div class="bar-track" style="position:relative">'+
+          '<div class="bar-fill" style="width:'+w+'%;background:'+col+'"></div>'+
+          '<div style="position:absolute;top:-2px;bottom:-2px;left:'+tp+'%;width:2px;background:#c62828"></div>'+
+        '</div><div class="bar-val">'+av+(low?" &#9888;":"")+'</div></div>';
+    }).join("");
+  })();
+
+  /* ventilators donut */
+  (function(){
+    var st={};
+    VENTS.forEach(function(v){ var s=v.Status||"Unknown"; st[s]=(st[s]||0)+1; });
+    var cmap={Available:"#2e7d32",Reserved:"#1565c0",Occupied:"#9aa7b5",Maintenance:"#b9770e",Unknown:"#d7dde5"};
+    donut("c-vents", Object.keys(st).map(function(k){return {label:k,value:st[k],color:cmap[k]||"#9aa7b5"};}));
+  })();
+
+  /* reservations summary */
+  (function(){
+    var by={};
+    RESV.forEach(function(r){
+      var k=r.ResourceType||"Other";
+      by[k]=by[k]||{count:0,qty:0};
+      by[k].count++; by[k].qty+=num(r.Quantity);
+    });
+    var cmap={Bed:"#004687",Ventilator:"#0a9396",Blood:"#c62828"};
+    var items=Object.keys(by).map(function(k){
+      return {label:k+"  ("+by[k].count+" reservation"+(by[k].count!==1?"s":"")+")", value:by[k].qty, color:cmap[k]||"#9aa7b5"};
+    });
+    hbars("c-resv", items, null, " u");
+    if(!items.length) document.getElementById("c-resv").innerHTML='<p style="color:#5f6b7a">No reservations this run.</p>';
+  })();
+
+  /* ---------- cases table ---------- */
+  function cellStatus(v){
+    if(!v) return '<span class="tag t-grey">&mdash;</span>';
+    var s=v.toLowerCase(), cls="t-grey";
+    if(s==="complete"||s==="available"||s==="reserved") cls="t-green";
+    else if(s==="not_required") cls="t-blue";
+    else if(s==="incomplete") cls="t-amber";
+    else if(s==="unavailable") cls="t-red";
+    return '<span class="tag '+cls+'">'+esc(v.replace("_"," "))+'</span>';
+  }
+  var caseFilter="All";
+  function renderCases(){
+    var tb=document.querySelector("#t-cases tbody");
+    var rows=CASES.filter(function(c){
+      if(caseFilter==="All") return true;
+      if(caseFilter==="Approved") return bucket(c.CaseStatus)==="Approved";
+      if(caseFilter==="Pending") return bucket(c.CaseStatus).indexOf("Pending")===0;
+      if(caseFilter==="Rejected/Error") return ["Rejected","Error"].indexOf(bucket(c.CaseStatus))>=0;
+      return true;
+    });
+    tb.innerHTML = rows.map(function(c){
+      var p=patById[c.PatientId]||{};
+      var sc=num(c.ReadinessPercentage);
+      var b=bucket(c.CaseStatus);
+      var scls={"Approved":"t-green","Rejected":"t-red","Error":"t-red"}[b] ||
+               (b.indexOf("Pending")===0?"t-amber":"t-grey");
+      return '<tr>'+
+        '<td class="code">'+esc(c.CaseId)+'</td>'+
+        '<td>'+esc(p.Name||c.PatientId)+'<div style="font-size:11px;color:#5f6b7a">'+esc(p.Age||"?")+" &bull; "+esc(p.Gender||"")+'</div></td>'+
+        '<td>'+esc(p.EmergencyType||"")+'</td>'+
+        '<td>'+esc(p.RequiredDepartment||"")+'</td>'+
+        '<td>'+cellStatus(c.DocumentStatus)+'</td>'+
+        '<td>'+cellStatus(c.BedStatus)+'</td>'+
+        '<td>'+cellStatus(c.VentilatorStatus)+'</td>'+
+        '<td>'+cellStatus(c.BloodStatus)+'</td>'+
+        '<td><div style="display:flex;align-items:center;gap:8px"><div class="mini"><i style="width:'+sc+'%;background:'+scoreColor(sc)+'"></i></div><b>'+sc+'%</b></div></td>'+
+        '<td><span class="tag '+scls+'">'+esc(b)+'</span></td>'+
+        '<td style="font-size:12px;color:#5f6b7a">'+esc(c.PendingAction||"None")+'</td>'+
+      '</tr>';
+    }).join("") || '<tr><td colspan="11" style="color:#5f6b7a">No cases match this filter.</td></tr>';
+  }
+  (function(){
+    var host=document.getElementById("case-chips");
+    ["All","Approved","Pending","Rejected/Error"].forEach(function(f){
+      var b=document.createElement("span");
+      b.className="chip"+(f===caseFilter?" active":"");
+      b.textContent=f;
+      b.onclick=function(){ caseFilter=f;
+        [].forEach.call(host.children,function(x){x.classList.toggle("active",x.textContent===f);});
+        renderCases();
+      };
+      host.appendChild(b);
+    });
+  })();
+  renderCases();
+
+  /* ---------- reservations table ---------- */
+  (function(){
+    var tb=document.querySelector("#t-resv tbody");
+    tb.innerHTML = RESV.map(function(r){
+      var cmap={Bed:"t-blue",Ventilator:"t-green",Blood:"t-red"};
+      return '<tr><td class="code">'+esc(r.CaseId)+'</td>'+
+        '<td><span class="tag '+(cmap[r.ResourceType]||"t-grey")+'">'+esc(r.ResourceType)+'</span></td>'+
+        '<td class="code">'+esc(r.ResourceId)+'</td>'+
+        '<td>'+esc(r.Quantity)+'</td>'+
+        '<td>'+esc(r.Status)+'</td>'+
+        '<td style="font-size:12px;color:#5f6b7a">'+esc(r.ReservedAt)+'</td></tr>';
+    }).join("") || '<tr><td colspan="6" style="color:#5f6b7a">No reservations recorded this run.</td></tr>';
+  })();
+
+  /* ---------- audit timeline ---------- */
+  var actColor={
+    CASE_CREATED:"#1565c0",DOC_CHECKED:"#0a9396",BED_CHECKED:"#0a9396",VENT_CHECKED:"#0a9396",
+    BLOOD_CHECKED:"#0a9396",READINESS_CALC:"#b9770e",APPROVED:"#2e7d32",REJECTED:"#c62828",
+    PENDING_APPROVAL:"#b9770e",RESOURCES_RESERVED:"#2e7d32",ROLLBACK:"#c62828",
+    CASE_CLOSED:"#004687",EXCEPTION:"#c62828"
+  };
+  var auditFilter="All";
+  function renderAudit(){
+    var host=document.getElementById("audit-tl");
+    var rows=AUDIT.slice().sort(function(a,b){ return num(a.LogId)-num(b.LogId); });
+    if(auditFilter!=="All") rows=rows.filter(function(r){return r.CaseId===auditFilter;});
+    host.innerHTML = rows.map(function(r){
+      var col=actColor[r.Action]||"#5f6b7a";
+      return '<div class="ev">'+
+        '<div class="h">'+esc(r.Timestamp)+' &bull; <b class="code">'+esc(r.CaseId)+'</b> &bull; '+esc(r.PerformedBy||"Bot")+'</div>'+
+        '<div class="b"><span class="tag" style="background:'+col+'22;color:'+col+'">'+esc(r.Action)+'</span> '+esc(r.Description)+'</div>'+
+      '</div>';
+    }).join("") || '<p style="color:#5f6b7a">No audit rows.</p>';
+  }
+  (function(){
+    var host=document.getElementById("audit-chips");
+    var ids=["All"].concat(CASES.map(function(c){return c.CaseId;}));
+    ids.forEach(function(f){
+      var b=document.createElement("span");
+      b.className="chip"+(f===auditFilter?" active":"");
+      b.textContent=f;
+      b.onclick=function(){ auditFilter=f;
+        [].forEach.call(host.children,function(x){x.classList.toggle("active",x.textContent===f);});
+        renderAudit();
+      };
+      host.appendChild(b);
+    });
+  })();
+  renderAudit();
+
+  /* acceptance test results are intentionally not surfaced in this dashboard */
+
+  /* ================= episode extension: care team, theatre, admissions, billing ================= */
+  (function(){
+    var deptName={}; DEPTS.forEach(function(d){ deptName[d.DepartmentId]=d.Name; });
+    var docById={}; DOCTORS.forEach(function(d){ docById[d.DoctorId]=d; });
+
+    var rHost=document.getElementById("c-roster");
+    if(rHost){
+      var oncall=DOCTORS.filter(function(d){ return (d.OnCallStatus||"").toLowerCase()==="oncall"; })
+        .sort(function(a,b){ return (num(b.CurrentLoad)/(num(b.MaxLoad)||1)) - (num(a.CurrentLoad)/(num(a.MaxLoad)||1)); });
+      rHost.innerHTML = oncall.length ? '<div class="statlist">'+oncall.map(function(d){
+        var cur=num(d.CurrentLoad), mx=num(d.MaxLoad)||1, pct=Math.min(100,Math.round(cur/mx*100)), hi=cur>=mx;
+        return '<div class="statrow tip" data-tip="'+esc(d.Designation+" - "+(deptName[d.DepartmentId]||d.DepartmentId)+" - "+d.Specialty+(d.IsSurgeon==="1"?" - operating surgeon":"")+". Caseload "+cur+" of "+mx+".")+'">'+
+          '<span class="lb">'+esc(d.Name)+(d.IsSurgeon==="1"?' <span class="tag t-blue" style="font-size:9px;padding:0 5px">SURGEON</span>':'')+
+            '<small>'+esc((deptName[d.DepartmentId]||d.DepartmentId)+" · "+d.Specialty)+'</small></span>'+
+          '<div class="loadbar'+(hi?" hi":"")+'"><i style="width:'+pct+'%"></i></div>'+
+          '<span class="vl'+(hi?" bad":"")+'">'+cur+'/'+mx+'</span></div>';
+      }).join("")+'</div>' : '<p style="color:var(--muted)">No on-call doctors in the roster.</p>';
+    }
+
+    var thHost=document.getElementById("c-theatres");
+    if(thHost){
+      var tmap={available:"t-green",inuse:"t-amber",cleaning:"t-grey",maintenance:"t-red"};
+      var chips=THEATRES.map(function(t){
+        return '<span class="tag '+(tmap[(t.Status||"").toLowerCase()]||"t-grey")+'" title="'+esc((t.Name||t.TheatreId)+" - "+t.Status)+'">'+esc(t.TheatreId)+' &middot; '+esc(t.Status)+'</span>';
+      }).join(" ");
+      var booked=OTSCHED.filter(function(s){ return (s.Status||"")!=="Cancelled"; });
+      var rows=booked.map(function(s){
+        var sc=s.Status==="Done"?"t-green":s.Status==="Booked"?"t-blue":"t-grey";
+        return '<tr><td class="code">'+esc(s.CaseId)+'</td><td class="code">'+esc(s.TheatreId)+'</td>'+
+          '<td>'+esc(s.SurgeonId||"-")+'</td><td>'+esc(s.AnaesthetistId||"-")+'</td>'+
+          '<td><span class="tag '+sc+'">'+esc(s.Status)+'</span></td></tr>';
+      }).join("");
+      thHost.innerHTML='<div class="chips" style="margin-bottom:10px">'+(chips||'<span style="color:var(--muted)">No theatres</span>')+'</div>'+
+        (rows? '<div class="scroll" style="max-height:210px"><table><thead><tr><th>Case</th><th>Theatre</th><th>Surgeon</th><th>Anaesth.</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+             : '<p style="color:var(--muted)">No theatre bookings this run.</p>');
+    }
+
+    var ctBody=document.querySelector("#t-careteam tbody");
+    if(ctBody){
+      ctBody.innerHTML=DOCASSIGN.map(function(a){
+        var d=docById[a.DoctorId]||{};
+        var rc={Attending:"t-blue",Surgeon:"t-green",Anaesthetist:"t-teal",Consulting:"t-grey"}[a.Role]||"t-grey";
+        return '<tr><td class="code">'+esc(a.CaseId)+'</td><td><span class="tag '+rc+'">'+esc(a.Role)+'</span></td>'+
+          '<td>'+esc(d.Name||a.DoctorId)+'</td><td style="font-size:12px;color:var(--muted)">'+esc(a.Specialty||d.Specialty||"")+'</td>'+
+          '<td><span class="tag '+(a.Status==="Released"?"t-grey":"t-green")+'">'+esc(a.Status||"Assigned")+'</span></td></tr>';
+      }).join("") || '<tr><td colspan="5" style="color:var(--muted)">No care-team assignments yet.</td></tr>';
+    }
+
+    var ekHost=document.getElementById("episode-kpis");
+    if(ekHost){
+      var admitted=ADM.filter(function(a){ return (a.Status||"")==="Admitted"; }).length;
+      var fit=ADM.filter(function(a){ return (a.Status||"")==="FitForDischarge"; }).length;
+      var discharged=DISCH.filter(function(d){ return (d.DischargedAt||"")!==""; }).length;
+      var stays=ADM.map(function(a){ return num(a.ExpectedStayDays); }).filter(function(n){ return n>0; });
+      var avgLos=stays.length? (stays.reduce(function(x,y){return x+y;},0)/stays.length).toFixed(1) : "0";
+      var billed=BILLING.reduce(function(x,b){ return x+num(b.Amount); },0);
+      var claims=CLAIMS.filter(function(c){ return (c.Status||"")!=="Draft" && (c.Status||"")!==""; }).length;
+      var tiles=[
+        {label:"Admitted now", value:admitted, cls:"info"},
+        {label:"Fit for discharge", value:fit, cls:fit?"warn":"good"},
+        {label:"Discharged", value:discharged, cls:"good"},
+        {label:"Avg expected stay", value:avgLos+"d", cls:"info"},
+        {label:"Total billed", value:"₹"+Math.round(billed).toLocaleString(), cls:"info"},
+        {label:"Insurance claims", value:claims, foot:"submitted", cls:"info"}
+      ];
+      ekHost.innerHTML=tiles.map(function(k){
+        return '<div class="card kpi '+k.cls+'"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div>'+
+          (k.foot?'<div class="foot">'+k.foot+'</div>':'')+'</div>';
+      }).join("");
+    }
+
+    if(document.getElementById("c-episode")){
+      var eOrder=["Approved / admitted","In treatment","Fit for discharge","Discharged","Closed","Held / pending"];
+      var eCol={"Approved / admitted":"#1565c0","In treatment":"#0a9396","Fit for discharge":"#b9770e","Discharged":"#2e7d32","Closed":"#5f6b7a","Held / pending":"#d35400"};
+      function eStage(cs){
+        var s=(cs||"").toUpperCase();
+        if(s==="CLOSED") return "Closed";
+        if(s==="DISCHARGED") return "Discharged";
+        if(s==="FIT_FOR_DISCHARGE") return "Fit for discharge";
+        if(s==="IN_TREATMENT") return "In treatment";
+        if(s==="APPROVED"||s==="ADMITTED") return "Approved / admitted";
+        return "Held / pending";
+      }
+      var eBy={}; CASES.forEach(function(c){ var k=eStage(c.CaseStatus); eBy[k]=(eBy[k]||0)+1; });
+      donut("c-episode", eOrder.filter(function(k){return eBy[k];}).map(function(k){ return {label:k,value:eBy[k],color:eCol[k]}; }));
+    }
+
+    if(document.getElementById("c-billing")){
+      var bBy={}; BILLING.forEach(function(b){ var k=b.Category||"Other"; bBy[k]=(bBy[k]||0)+num(b.Amount); });
+      var bCol={Registration:"#004687",BedDay:"#0a9396",DoctorFee:"#1565c0",Procedure:"#b9770e",OT:"#d35400",Blood:"#c62828",Investigation:"#2e7d32",Consumable:"#9aa7b5"};
+      var bItems=Object.keys(bBy).sort(function(a,b){ return bBy[b]-bBy[a]; }).map(function(k){ return {label:k, value:Math.round(bBy[k]), color:bCol[k]||"#9aa7b5"}; });
+      hbars("c-billing", bItems, null, "");
+      if(!bItems.length) document.getElementById("c-billing").innerHTML='<p style="color:var(--muted)">No charges posted yet.</p>';
+    }
+
+    var admBody=document.querySelector("#t-adm tbody");
+    if(admBody){
+      var patName={}; PATS.forEach(function(p){ patName[p.PatientId]=p.Name; });
+      var disByCase={}; DISCH.forEach(function(d){ disByCase[d.CaseId]=d; });
+      var billByCase={}; BILLING.forEach(function(b){ billByCase[b.CaseId]=(billByCase[b.CaseId]||0)+num(b.Amount); });
+      admBody.innerHTML=ADM.map(function(a){
+        var d=disByCase[a.CaseId]||{};
+        var sc={Admitted:"t-blue",FitForDischarge:"t-amber",Discharged:"t-green",Closed:"t-grey"}[a.Status]||"t-grey";
+        return '<tr><td class="code">'+esc(a.CaseId)+'</td><td>'+esc(patName[a.PatientId]||a.PatientId)+'</td>'+
+          '<td class="code">'+esc(a.BedId)+'</td><td>'+esc(a.AttendingDoctorId)+'</td>'+
+          '<td style="font-size:12px;color:var(--muted)">'+esc(a.AdmittedAt)+'</td>'+
+          '<td><span class="tag '+sc+'">'+esc((a.Status||"").replace(/([a-z])([A-Z])/g,"$1 $2"))+'</span></td>'+
+          '<td>₹'+Math.round(billByCase[a.CaseId]||0).toLocaleString()+'</td>'+
+          '<td style="font-size:12px;color:var(--muted)">'+esc(d.DischargedAt||"-")+'</td></tr>';
+      }).join("") || '<tr><td colspan="8" style="color:var(--muted)">No admissions recorded yet &mdash; run the pipeline through admission.</td></tr>';
+    }
+  })();
+
+  /* ================= tabs ================= */
+  (function(){
+    var btns = document.querySelectorAll(".tab-btn");
+    var panels = { ops: document.getElementById("tab-ops"), user: document.getElementById("tab-user") };
+    function show(name){
+      Object.keys(panels).forEach(function(k){ if(panels[k]) panels[k].hidden = (k !== name); });
+      [].forEach.call(btns, function(b){ b.classList.toggle("active", b.getAttribute("data-tab") === name); });
+      document.body.classList.toggle("patient-view", name === "user");
+      try{ localStorage.setItem("ecc.tab", name); }catch(e){}
+    }
+    [].forEach.call(btns, function(b){ b.onclick = function(){ show(b.getAttribute("data-tab")); }; });
+    var saved = null; try{ saved = localStorage.getItem("ecc.tab"); }catch(e){}
+    show(saved === "user" ? "user" : "ops");
+  })();
+
+  /* ================= live indicator / auto-refresh ================= */
+  (function(){
+    var pill = document.getElementById("live-pill");
+    var txt  = document.getElementById("live-text");
+    var btn  = document.getElementById("btn-reload");
+    if(!LIVE){ if(txt) txt.textContent = "Snapshot"; return; }
+    if(pill) pill.classList.remove("off");
+    if(txt) txt.textContent = "Live";
+    if(btn) btn.textContent = "Refresh now";
+    setInterval(function(){
+      var a = document.activeElement;
+      if(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return;      // don't interrupt typing
+      var u = document.getElementById("tab-user");
+      if(u && !u.hidden) return;                                         // don't interrupt intake
+      location.reload();
+    }, 15000);
+  })();
+
+  /* ================= my submitted requests (private to this device) ================= */
+  (function(){
+    var tb = document.querySelector("#t-queue tbody");
+    if(!tb) return;
+
+    var mine = [];
+    try{ mine = JSON.parse(localStorage.getItem("ecc.mine") || "[]"); }catch(e){ mine = []; }
+    if(!Array.isArray(mine)) mine = [];
+
+    var status = {}; CASES.forEach(function(c){ status[c.CaseId] = c.CaseStatus; });
+
+    tb.innerHTML = mine.map(function(ref){
+      var processed = !!status[ref];
+      var tag = processed
+        ? '<span class="tag t-green" title="Checks complete - a bed, ventilator and blood have been assigned where needed.">Processed</span>'
+        : '<span class="tag t-amber" title="Received - the coordination team will pick this up shortly.">Waiting</span>';
+      return '<tr><td class="code">'+esc(ref)+'</td><td>'+tag+'</td></tr>';
+    }).join("") || '<tr><td colspan="2" style="color:var(--muted)">You have not sent a request from this device yet. Once you do, its reference and status appear here.</td></tr>';
+  })();
+
+  /* ================= new admission form (with document upload) ================= */
+  (function(){
+    var btn = document.getElementById("f-submit");
+    if(!btn) return;
+    var out = document.getElementById("f-result");
+    var MAX = 12 * 1024 * 1024;
+    function v(id){ var el = document.getElementById(id); return el ? el.value : ""; }
+    function msg(cls, html){ out.innerHTML = '<div class="result '+cls+'">'+html+'</div>'; }
+
+    btn.onclick = function(){
+      var name = v("f-name").trim();
+      if(!name){ msg("err", "Enter the patient name."); return; }
+      if(!LIVE){
+        msg("hint", "Start the console (Start Console.bat) to submit an admission and attach documents.");
+        return;
+      }
+      var base = {
+        name: name, age: v("f-age"), gender: v("f-gender"),
+        emergencyType: v("f-type"), department: v("f-dept"),
+        ventilator: document.getElementById("f-vent").checked,
+        bloodGroup: v("f-bg"), bloodUnits: v("f-units"), notes: v("f-notes")
+      };
+      var inputs = [].slice.call(document.querySelectorAll(".f-file"));
+      var chosen = inputs.filter(function(fi){ return fi.files && fi.files[0]; });
+      var over = chosen.filter(function(fi){ return fi.files[0].size > MAX; });
+      if(over.length){ msg("err", esc(over[0].files[0].name) + " is larger than 12 MB."); return; }
+
+      var docs = {};
+      var remaining = chosen.length;
+      function finish(){
+        base.docs = docs;
+        btn.disabled = true;
+        msg("hint", "Submitting&hellip;");
+        fetch("/api/submit", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(base) })
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            btn.disabled = false;
+            if(d && d.ok){
+              try{
+                var mine = JSON.parse(localStorage.getItem("ecc.mine") || "[]");
+                if(!Array.isArray(mine)) mine = [];
+                if(d.caseId && mine.indexOf(d.caseId) < 0){
+                  mine.push(d.caseId);
+                  localStorage.setItem("ecc.mine", JSON.stringify(mine));
+                }
+              }catch(e){}
+              out.innerHTML = '<div class="result ok"><b>'+esc(d.caseId)+'</b> &mdash; '+esc(d.message)+'<br>'+
+                'Reference '+esc(d.patientId)+'. Documents attached: '+
+                (d.documentsOnFile.length ? esc(d.documentsOnFile.join(", ")) : "none")+
+                (d.documentsMissing.length ? '. Pending: '+esc(d.documentsMissing.join(", ")) : "")+'</div>'+
+                '<button class="btn-ghost" style="margin-top:8px" onclick="location.reload()">Refresh</button>';
+            } else {
+              msg("err", esc((d && d.error) || "Could not submit."));
+            }
+          })
+          .catch(function(e){ btn.disabled = false; msg("err", esc(String(e))); });
+      }
+      if(!remaining){ finish(); return; }
+      chosen.forEach(function(fi){
+        var f = fi.files[0];
+        var rd = new FileReader();
+        rd.onload = function(){
+          docs[fi.getAttribute("data-doc")] = { filename: f.name, dataB64: String(rd.result).split(",")[1] || "" };
+          if(--remaining === 0) finish();
+        };
+        rd.onerror = function(){ btn.disabled = false; msg("err", "Could not read " + esc(f.name) + "."); };
+        rd.readAsDataURL(f);
+      });
+    };
+  })();
+
+  /* ================= availability now ================= */
+  (function(){
+    var bedHost = document.getElementById("a-beds");
+    if(!bedHost) return;
+
+    var IC = {
+      bed:'<svg viewBox="0 0 24 24"><path d="M7 13c1.66 0 3-1.34 3-3S8.66 7 7 7s-3 1.34-3 3 1.34 3 3 3zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9c0-2.21-1.79-4-4-4z"/></svg>',
+      air:'<svg viewBox="0 0 24 24"><path d="M14.5 17c0 1.65-1.35 3-3 3s-3-1.35-3-3h2c0 .55.45 1 1 1s1-.45 1-1-.45-1-1-1H2v-2h9.5c1.65 0 3 1.35 3 3zM19 6.5C19 4.57 17.43 3 15.5 3 13.57 3 12 4.57 12 6.5h2C14 5.67 14.67 5 15.5 5s1.5.67 1.5 1.5S16.33 8 15.5 8H2v2h13.5c1.93 0 3.5-1.57 3.5-3.5zm-.5 4.5H2v2h16.5c.83 0 1.5.67 1.5 1.5S19.33 16 18.5 16v2c1.93 0 3.5-1.57 3.5-3.5S20.43 11 18.5 11z"/></svg>',
+      drop:'<svg viewBox="0 0 24 24"><path d="M12 3.1l-.72.78C9.4 5.92 5 11.03 5 14.5a7 7 0 0 0 14 0c0-3.47-4.4-8.58-6.28-10.62L12 3.1z"/></svg>'
+    };
+    function head(t){ return '<div class="stathead">'+esc(t)+'</div>'; }
+    function row(icon, label, sub, value, cls, tip){
+      return '<div class="statrow tip" data-tip="'+esc(tip)+'" title="'+esc(tip)+'">'+
+        '<span class="ic">'+IC[icon]+'</span>'+
+        '<span class="lb">'+esc(label)+(sub?'<small>'+esc(sub)+'</small>':'')+'</span>'+
+        '<span class="vl'+(cls?' '+cls:'')+'">'+value+'</span></div>';
+    }
+
+    var deps = {};
+    BEDS.forEach(function(b){
+      var d = b.Department || "Other";
+      deps[d] = deps[d] || { free: 0, total: 0 };
+      deps[d].total++;
+      if((b.Status || "").toLowerCase() === "available") deps[d].free++;
+    });
+    bedHost.innerHTML = head("Empty beds, by department") + (Object.keys(deps).map(function(d){
+      var f = deps[d].free, t = deps[d].total;
+      var tip = f > 0
+        ? f + " of " + t + " " + d + " beds are empty and ready for a patient right now."
+        : "Every " + d + " bed (" + t + " total) is in use right now. A new " + d + " patient would wait for one to free up.";
+      return row("bed", d + " beds", "of " + t + " in this department", f + " free", f > 0 ? "ok" : "bad", tip);
+    }).join("") || row("bed", "Beds", "", "n/a", "", "No bed information is available."));
+
+    var ventFree = VENTS.filter(function(x){ return (x.Status || "").toLowerCase() === "available"; }).length;
+    var low = BLOOD.filter(function(b){ return num(b.AvailableUnits) <= num(b.MinimumThreshold); }).map(function(b){ return b.BloodGroup; });
+    var totBlood = BLOOD.reduce(function(a, b){ return a + num(b.AvailableUnits); }, 0);
+
+    var oh = document.getElementById("a-other");
+    if(oh) oh.innerHTML = head("Ventilators & blood") +
+      row("air", "Ventilators free", "of " + VENTS.length + " in the hospital",
+          ventFree + " free", ventFree > 0 ? "ok" : "bad",
+          ventFree + " of " + VENTS.length + " breathing-support machines are free right now.") +
+      row("drop", "Blood units in stock", "all groups combined",
+          String(totBlood), "",
+          "Total blood units across every group held in the hospital blood bank right now.") +
+      row("drop", "Blood groups running low", low.length ? low.join(", ") : "none — all above minimum",
+          low.length ? String(low.length) : "OK", low.length ? "bad" : "ok",
+          low.length
+            ? "At or below the safe minimum: " + low.join(", ") + ". Staff restock these first."
+            : "Every blood group is above its safe minimum level.");
+  })();
+
+})();
+</script>
+</body>
+</html>

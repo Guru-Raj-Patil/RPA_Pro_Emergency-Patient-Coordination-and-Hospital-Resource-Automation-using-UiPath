@@ -1,0 +1,12 @@
+TestId|Scenario|Expected|Actual|Result
+T1|Successful case (ER1024)|Readiness 100 and CaseStatus Approved and resources reserved|Readiness 100 status Approved with 3 reservation(s)|PASS
+T2|Missing document (ER1025)|Readiness 75, status PENDING_DOCUMENTATION, DocumentStatus Incomplete, no reservation|Readiness 75 status PENDING_DOCUMENTATION doc Incomplete with 0 reservation(s)|PASS
+T3|No ICU bed (ER1027)|BedStatus Unavailable, status PENDING_BED, no reservation (escalated to staff)|Bed Unavailable status PENDING_BED with 0 reservation(s)|PASS
+T4|No ventilator (ER1027)|VentilatorStatus Unavailable when required, no reservation|Vent Unavailable with 0 reservation(s)|PASS
+T5|Insufficient blood (ER1028)|BloodStatus Unavailable (needs 10, stock 2), Readiness 25, no reservation|Blood Unavailable readiness 25 with 0 reservation(s)|PASS
+T6|Multiple simultaneous cases (ER1029/30/31)|Each batch case processed independently to Readiness 100 and Approved|ER1029 100/Approved  ER1030 100/Approved  ER1031 100/Approved|PASS
+T7|Database / file failure|System exception path with retry and no reservation corruption|Documented - simulate by locking a Data/db/*.psv file during a run; HandleException routes SystemException and audit stays consistent|MANUAL
+T8|Duplicate case detection|Each CaseId appears once; no case holds more than 3 reservations|8 case rows, 8 unique CaseIds, max 3 reservation(s)/case|PASS
+SYS1|Reservation integrity|12 total reservations, 5 bed reservations, O- stock 2 after O-x4 reserved|12 reservations, 5 bed, O- stock 2|PASS
+SYS2|Exception handling integrity|No unhandled EXCEPTION rows in the audit trail|0 EXCEPTION audit row(s)|PASS
+SYS3|Audit completeness|Every processed case has a CASE_CLOSED audit entry|8/8 cases closed|PASS

@@ -1,0 +1,32 @@
+ACTION REQUIRED - authorised staff review
+Case: ER1024
+Created: 2026-09-06 19:05:43
+
+==============================================
+ EMERGENCY CASE STATUS REPORT
+==============================================
+ Case ID : ER1024
+ Patient : Rahul Kumar
+ Department : ICU
+ Generated : 2026-09-06 19:05:43
+----------------------------------------------
+ RESOURCE STATUS
+ Bed : ICU-03 - Available
+ Ventilator : V-03 - Available
+ Blood : O- x4 - Available
+ Documents : 4/4 documents present
+----------------------------------------------
+ READINESS ASSESSMENT (administrative only)
+ Readiness : 100%
+ Status : READY_FOR_APPROVAL
+ Pending : None
+----------------------------------------------
+ SCORING BREAKDOWN
+ Documents : 25/25
+ Bed : 25/25
+ Ventilator : 25/25
+ Blood : 25/25
+==============================================
+ NOTE: administrative readiness only. All clinical
+ decisions remain with authorised medical staff.
+==============================================

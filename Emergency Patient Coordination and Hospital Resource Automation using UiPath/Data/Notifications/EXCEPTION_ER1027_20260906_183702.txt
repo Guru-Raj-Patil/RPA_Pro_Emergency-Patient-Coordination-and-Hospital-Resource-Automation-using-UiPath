@@ -1,0 +1,6 @@
+EMERGENCY RPA EXCEPTION REPORT
+Case      : ER1027
+Type      : BusinessException
+Message   : BE-007: Duplicate emergency case ER1027 already exists
+Timestamp : 2026-09-06 18:37:02
+Action    : Manual review required.

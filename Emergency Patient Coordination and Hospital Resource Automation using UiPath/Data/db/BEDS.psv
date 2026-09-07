@@ -1,0 +1,11 @@
+BedId|Department|BedType|Status|VentilatorId|LastUpdated
+ICU-01|ICU|Premium|Occupied|V-01|2026-09-06 10:44:11
+ICU-02|ICU|Premium|Occupied|V-02|2026-09-06 10:44:11
+ICU-03|ICU|Premium|Reserved|V-03|2026-09-06 16:24:54
+ICU-04|ICU|Standard|Reserved|V-04|2026-09-06 16:24:58
+GEN-01|General|Standard|Occupied||2026-09-06 10:44:11
+GEN-02|General|Standard|Reserved||2026-09-06 16:25:03
+GEN-03|General|Standard|Reserved||2026-09-06 16:25:05
+GEN-04|General|Standard|Available||2026-09-06 10:44:11
+CARD-01|Cardiology|Premium|Reserved|V-05|2026-09-06 16:25:08
+CARD-02|Cardiology|Standard|Available||2026-09-06 10:44:11

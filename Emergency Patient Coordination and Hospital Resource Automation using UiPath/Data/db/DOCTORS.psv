@@ -1,0 +1,24 @@
+DoctorId|Name|DepartmentId|Designation|Specialty|IsSurgeon|OnCallStatus|ShiftStart|ShiftEnd|CurrentLoad|MaxLoad|Contact|Email|LastUpdated
+DR-001|Dr. Meera Iyer|DEPT-ICU|Senior Consultant|Critical Care Medicine|0|OnCall|08:00|20:00|2|6|Ext 3101|m.iyer@citygeneral.local|2026-09-06 10:44:11
+DR-002|Dr. Arjun Rao|DEPT-ICU|Consultant|Critical Care & Pulmonology|0|OnCall|20:00|08:00|1|6|Ext 3102|a.rao@citygeneral.local|2026-09-06 10:44:11
+DR-003|Dr. Sanjay Menon|DEPT-ICU|Registrar|Intensive Care|0|OffDuty|08:00|20:00|0|8|Ext 3103|s.menon@citygeneral.local|2026-09-06 10:44:11
+DR-004|Dr. Kavya Nair|DEPT-CARD|HOD|Interventional Cardiology|0|OnCall|09:00|18:00|3|5|Ext 2201|k.nair@citygeneral.local|2026-09-06 10:44:11
+DR-005|Dr. Rohan Desai|DEPT-CARD|Consultant|Cardiac Electrophysiology|0|OnCall|18:00|09:00|1|5|Ext 2202|r.desai@citygeneral.local|2026-09-06 10:44:11
+DR-006|Dr. Vikram Shetty|DEPT-CTVS|HOD|Cardiothoracic Surgery|1|OnCall|08:00|18:00|1|3|Ext 4301|v.shetty@citygeneral.local|2026-09-06 10:44:11
+DR-007|Dr. Priya Kulkarni|DEPT-CTVS|Consultant|Cardiac Surgery|1|OffDuty|08:00|18:00|0|3|Ext 4302|p.kulkarni@citygeneral.local|2026-09-06 10:44:11
+DR-008|Dr. Anil Kapoor|DEPT-NEURO|HOD|Stroke & Vascular Neurology|0|OnCall|08:00|20:00|2|5|Ext 5401|a.kapoor@citygeneral.local|2026-09-06 10:44:11
+DR-009|Dr. Deepa Reddy|DEPT-NEURO|Consultant|Epileptology|0|OffDuty|08:00|20:00|0|5|Ext 5402|d.reddy@citygeneral.local|2026-09-06 10:44:11
+DR-010|Dr. Rajesh Pillai|DEPT-NSURG|HOD|Neurosurgery|1|OnCall|08:00|18:00|1|3|Ext 4401|r.pillai@citygeneral.local|2026-09-06 10:44:11
+DR-011|Dr. Sneha Joshi|DEPT-NSURG|Consultant|Spine Surgery|1|OnCall|18:00|08:00|0|3|Ext 4402|s.joshi@citygeneral.local|2026-09-06 10:44:11
+DR-012|Dr. Manoj Verma|DEPT-ORTHO|HOD|Trauma Orthopaedics|1|OnCall|08:00|20:00|2|5|Ext 2401|m.verma@citygeneral.local|2026-09-06 10:44:11
+DR-013|Dr. Ritu Agarwal|DEPT-ORTHO|Consultant|Joint Replacement|1|OffDuty|08:00|20:00|0|5|Ext 2402|r.agarwal@citygeneral.local|2026-09-06 10:44:11
+DR-014|Dr. Suresh Kamath|DEPT-TRAUMA|HOD|Trauma & Emergency Surgery|1|OnCall|08:00|20:00|3|6|Ext 1501|s.kamath@citygeneral.local|2026-09-06 10:44:11
+DR-015|Dr. Nisha Thomas|DEPT-TRAUMA|Consultant|Emergency General Surgery|1|OnCall|20:00|08:00|1|6|Ext 1502|n.thomas@citygeneral.local|2026-09-06 10:44:11
+DR-016|Dr. Gaurav Sinha|DEPT-GSURG|HOD|General & Laparoscopic Surgery|1|OnCall|09:00|18:00|1|5|Ext 3401|g.sinha@citygeneral.local|2026-09-06 10:44:11
+DR-017|Dr. Farah Khan|DEPT-GSURG|Consultant|Gastrointestinal Surgery|1|OffDuty|09:00|18:00|0|5|Ext 3402|f.khan@citygeneral.local|2026-09-06 10:44:11
+DR-018|Dr. Vivek Bhatt|DEPT-NEPHRO|HOD|Nephrology & Dialysis|0|OnCall|08:00|18:00|2|5|Ext 5501|v.bhatt@citygeneral.local|2026-09-06 10:44:11
+DR-019|Dr. Lakshmi Menon|DEPT-PULMO|HOD|Pulmonology & Critical Care|0|OnCall|08:00|18:00|2|5|Ext 3301|l.menon@citygeneral.local|2026-09-06 10:44:11
+DR-020|Dr. Amit Chauhan|DEPT-GEN|HOD|Internal Medicine|0|OnCall|08:00|20:00|4|8|Ext 1101|a.chauhan@citygeneral.local|2026-09-06 10:44:11
+DR-021|Dr. Pooja Malhotra|DEPT-GEN|Consultant|Internal Medicine|0|OnCall|20:00|08:00|2|8|Ext 1102|p.malhotra@citygeneral.local|2026-09-06 10:44:11
+DR-022|Dr. Karan Bose|DEPT-ANAES|Senior Consultant|Anaesthesiology & Perioperative Care|0|OnCall|08:00|20:00|1|6|Ext 4501|k.bose@citygeneral.local|2026-09-06 10:44:11
+DR-023|Dr. Ayesha Siddiqui|DEPT-ANAES|Consultant|Cardiac Anaesthesia|0|OnCall|20:00|08:00|0|6|Ext 4502|a.siddiqui@citygeneral.local|2026-09-06 10:44:11

@@ -1,261 +1,226 @@
-<Activity mc:Ignorable="sap sap2010" x:Class="Main" VisualBasic.Settings="{x:Null}" sap2010:WorkflowViewState.IdRef="ActivityBuilder_1" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib" xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Activity mc:Ignorable="sap sap2010" x:Class="Main" sap2010:WorkflowViewState.IdRef="ActivityBuilder_1" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib" xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <TextExpression.NamespacesForImplementation>
     <sco:Collection x:TypeArguments="x:String">
-      <x:String>System.Activities</x:String>
-      <x:String>System.Activities.Statements</x:String>
-      <x:String>System.Activities.Expressions</x:String>
-      <x:String>System.Activities.Validation</x:String>
-      <x:String>System.Activities.XamlIntegration</x:String>
+      <x:String>GlobalConstantsNamespace</x:String>
+      <x:String>GlobalVariablesNamespace</x:String>
       <x:String>Microsoft.VisualBasic</x:String>
-      <x:String>Microsoft.VisualBasic.Activities</x:String>
       <x:String>System</x:String>
-      <x:String>System.Collections</x:String>
       <x:String>System.Collections.Generic</x:String>
       <x:String>System.Collections.ObjectModel</x:String>
-      <x:String>System.Data</x:String>
-      <x:String>System.Diagnostics</x:String>
       <x:String>System.IO</x:String>
       <x:String>System.Linq</x:String>
-      <x:String>System.Windows.Markup</x:String>
       <x:String>UiPath.Core</x:String>
       <x:String>UiPath.Core.Activities</x:String>
-      <x:String>GlobalVariablesNamespace</x:String>
-      <x:String>GlobalConstantsNamespace</x:String>
     </sco:Collection>
   </TextExpression.NamespacesForImplementation>
   <TextExpression.ReferencesForImplementation>
     <sco:Collection x:TypeArguments="AssemblyReference">
       <AssemblyReference>System.Activities</AssemblyReference>
       <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
-      <AssemblyReference>System.Private.CoreLib</AssemblyReference>
       <AssemblyReference>mscorlib</AssemblyReference>
-      <AssemblyReference>System.Data</AssemblyReference>
-      <AssemblyReference>System</AssemblyReference>
-      <AssemblyReference>System.Linq</AssemblyReference>
       <AssemblyReference>System.Core</AssemblyReference>
-      <AssemblyReference>System.Xml</AssemblyReference>
-      <AssemblyReference>System.Xml.Linq</AssemblyReference>
-      <AssemblyReference>PresentationFramework</AssemblyReference>
-      <AssemblyReference>WindowsBase</AssemblyReference>
-      <AssemblyReference>PresentationCore</AssemblyReference>
-      <AssemblyReference>System.Xaml</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
       <AssemblyReference>UiPath.System.Activities</AssemblyReference>
-      <AssemblyReference>UiPath.UiAutomation.Activities</AssemblyReference>
-      <AssemblyReference>System.Data.DataSetExtensions</AssemblyReference>
-      <AssemblyReference>System.Net.Mail</AssemblyReference>
-      <AssemblyReference>System.Windows.Forms</AssemblyReference>
       <AssemblyReference>System.ObjectModel</AssemblyReference>
       <AssemblyReference>System.ComponentModel.TypeConverter</AssemblyReference>
     </sco:Collection>
   </TextExpression.ReferencesForImplementation>
-  <Sequence DisplayName="Main  - Emergency Patient Coordination" sap2010:WorkflowViewState.IdRef="Sequence_Main">
+  <Sequence DisplayName="Main - Emergency Patient Coordination" sap2010:WorkflowViewState.IdRef="Sequence_MAIN">
     <Sequence.Variables>
       <Variable x:TypeArguments="x:Object" Name="v_Config" />
-      <Variable x:TypeArguments="x:String" Name="v_DBPath">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_DBConnStr">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_PatientId">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_PatientName">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_CaseId">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_EmergencyType">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_RequiredDept">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_VentRequired" />
-      <Variable x:TypeArguments="x:String" Name="v_BloodGroup">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Int32" Default="0" Name="v_BloodUnits" />
-      <Variable x:TypeArguments="x:String" Name="v_DocStatus">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Object" Name="v_MissingDocs" />
-      <Variable x:TypeArguments="x:String" Name="v_DocSummary">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_BedStatus">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_BedId">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_VentStatus">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_VentId">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_BloodStatus">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Int32" Default="0" Name="v_AvailableUnits" />
-      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_BelowThreshold" />
-      <Variable x:TypeArguments="x:Int32" Default="0" Name="v_ReadinessScore" />
-      <Variable x:TypeArguments="x:String" Name="v_FinalStatus">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_PendingAction">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_StatusReport">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_ApprovalDecision">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:String" Name="v_ApproverNotes">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Boolean" Default="False" Name="v_ReservationOk" />
-      <Variable x:TypeArguments="x:String" Name="v_FailureReason">
-        <Variable.Default>
-          <Literal x:TypeArguments="x:String" Value="" />
-        </Variable.Default>
-      </Variable>
-      <Variable x:TypeArguments="x:Object" Name="v_InputRows" />
-      <Variable x:TypeArguments="x:Int32" Default="0" Name="v_RowIndex" />
-      <Variable x:TypeArguments="x:Int32" Default="0" Name="v_TotalRows" />
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:String)" Name="v_Cfg" />
+      <Variable x:TypeArguments="x:String" Name="v_ProjRoot" />
+      <Variable x:TypeArguments="x:String" Name="v_DbFolder" />
+      <Variable x:TypeArguments="x:String" Name="v_ReqDocsCsv" />
+      <Variable x:TypeArguments="x:String" Name="v_InputRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_CasesRaw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Pending" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_F" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Total" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Idx" />
+      <Variable x:TypeArguments="x:String" Name="v_PatientId" />
+      <Variable x:TypeArguments="x:String" Name="v_PatientName" />
+      <Variable x:TypeArguments="x:String" Name="v_Dept" />
+      <Variable x:TypeArguments="x:String" Name="v_EmergType" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_VentReq" />
+      <Variable x:TypeArguments="x:String" Name="v_BloodGroup" />
+      <Variable x:TypeArguments="x:Int32" Name="v_BloodUnits" />
+      <Variable x:TypeArguments="x:String" Name="v_CaseId" />
+      <Variable x:TypeArguments="x:String" Name="v_DocStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_MissingDocs" />
+      <Variable x:TypeArguments="x:String" Name="v_DocSummary" />
+      <Variable x:TypeArguments="x:String" Name="v_BedStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId" />
+      <Variable x:TypeArguments="x:String" Name="v_VentStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_VentId" />
+      <Variable x:TypeArguments="x:String" Name="v_BloodStatus" />
+      <Variable x:TypeArguments="x:Int32" Name="v_AvailUnits" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_BelowThr" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Score" />
+      <Variable x:TypeArguments="x:String" Name="v_FinalStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_PendingAction" />
+      <Variable x:TypeArguments="x:String" Name="v_StatusReport" />
+      <Variable x:TypeArguments="x:String" Name="v_ApprovalDecision" />
+      <Variable x:TypeArguments="x:String" Name="v_ApproverNotes" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_ReservationOk" />
+      <Variable x:TypeArguments="x:String" Name="v_FailureReason" />
+      <Variable x:TypeArguments="x:String" Name="v_CareTeamStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_AttDoctorId" />
+      <Variable x:TypeArguments="x:String" Name="v_AttDoctorName" />
+      <Variable x:TypeArguments="x:String" Name="v_CareTeamSummary" />
+      <Variable x:TypeArguments="x:String" Name="v_TheatreId" />
+      <Variable x:TypeArguments="x:String" Name="v_OtSlotId" />
+      <Variable x:TypeArguments="x:String" Name="v_TheatreStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_TheatreSummary" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmissionId" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmissionSummary" />
     </Sequence.Variables>
     <sap:WorkflowViewStateService.ViewState>
       <scg:Dictionary x:TypeArguments="x:String, x:Object">
         <x:Boolean x:Key="IsExpanded">True</x:Boolean>
       </scg:Dictionary>
     </sap:WorkflowViewStateService.ViewState>
-    <ui:LogMessage DisplayName="Log: Bot Starting" sap2010:WorkflowViewState.IdRef="LogMessage_1" Level="Info" Message="[&quot;============================================================&quot;]" />
-    <ui:LogMessage sap2010:WorkflowViewState.IdRef="LogMessage_2" Level="Info" Message="[&quot; Emergency Patient Coordination RPA  - Starting&quot;]" />
-    <ui:LogMessage sap2010:WorkflowViewState.IdRef="LogMessage_3" Level="Info" Message="[&quot; Hospital: City General Hospital&quot;]" />
-    <ui:LogMessage sap2010:WorkflowViewState.IdRef="LogMessage_4" Level="Info" Message="[&quot; Time: &quot; &amp; DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;)]" />
-    <ui:LogMessage sap2010:WorkflowViewState.IdRef="LogMessage_5" Level="Info" Message="[&quot;============================================================&quot;]" />
+    <ui:LogMessage DisplayName="Log: bot starting" sap2010:WorkflowViewState.IdRef="LogMessage_1" Level="Info" Message="[&quot;[Main] Emergency Patient Coordination RPA - starting &quot; &amp; DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;)]" />
     <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="GetConfig" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_1" UnSafe="False" WorkflowFileName="Framework\GetConfig.xaml">
       <ui:InvokeWorkflowFile.Arguments>
         <OutArgument x:TypeArguments="x:Object" x:Key="out_Config">[v_Config]</OutArgument>
       </ui:InvokeWorkflowFile.Arguments>
     </ui:InvokeWorkflowFile>
-    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Init" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_2" UnSafe="False" WorkflowFileName="Framework\Init.xaml">
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Initialization" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_2" UnSafe="False" WorkflowFileName="Framework\Initialization.xaml">
       <ui:InvokeWorkflowFile.Arguments>
         <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
-        <OutArgument x:TypeArguments="x:String" x:Key="out_DBConnStr">[v_DBConnStr]</OutArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="out_DbFolder">[v_DbFolder]</OutArgument>
       </ui:InvokeWorkflowFile.Arguments>
     </ui:InvokeWorkflowFile>
-    <ui:InvokeCode ContinueOnError="{x:Null}" Code="' Connection string format: &quot;Data Source=&lt;path&gt;;...&quot; Dim cfg As Dictionary(Of String, String) = CType(v_Config, Dictionary(Of String, String)) Dim projRoot As String = cfg(&quot;ProjectRoot&quot;) Dim relDb As String = cfg(&quot;DatabasePath&quot;) v_DBPath = System.IO.Path.Combine(projRoot, relDb)" DisplayName="Extract DBPath from ConnStr" sap2010:WorkflowViewState.IdRef="InvokeCode_1">
-      <ui:InvokeCode.Arguments>
-        <InArgument x:TypeArguments="x:Object" x:Key="v_Config">[v_Config]</InArgument>
-        <OutArgument x:TypeArguments="x:String" x:Key="v_DBPath">[v_DBPath]</OutArgument>
-      </ui:InvokeCode.Arguments>
-    </ui:InvokeCode>
-    <ui:InvokeCode ContinueOnError="{x:Null}" Code="Dim cfg As Dictionary(Of String, String) = CType(v_Config, Dictionary(Of String, String)) Dim projRoot As String = cfg(&quot;ProjectRoot&quot;) Dim inputPath As String = System.IO.Path.Combine(projRoot, &quot;Data&quot;, &quot;PatientInput.xlsx&quot;) If Not System.IO.File.Exists(inputPath) Then Throw New System.IO.FileNotFoundException(&quot;PatientInput.xlsx not found: &quot; &amp; inputPath) End If ' Read via Excel COM Dim xlApp As Object = CreateObject(&quot;Excel.Application&quot;) xlApp.Visible = False xlApp.DisplayAlerts = False Dim wb As Object = xlApp.Workbooks.Open(inputPath) Dim ws As Object = wb.Sheets(&quot;EmergencyRequests&quot;) Dim lastRow As Integer = ws.Cells(ws.Rows.Count, 1).End(-4162).Row ' Build list of rows as Dictionary Dim rows As New List(Of Dictionary(Of String, String))() For r As Integer = 2 To lastRow Dim status As String = CStr(If(ws.Cells(r, 10).Value2, &quot;Pending&quot;)) If status.Trim() = &quot;Pending&quot; Then Dim row As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) row(&quot;PatientId&quot;) = CStr(If(ws.Cells(r, 1).Value2, &quot;&quot;)) row(&quot;Name&quot;) = CStr(If(ws.Cells(r, 2).Value2, &quot;&quot;)) row(&quot;Age&quot;) = CStr(If(ws.Cells(r, 3).Value2, &quot;0&quot;)) row(&quot;Gender&quot;) = CStr(If(ws.Cells(r, 4).Value2, &quot;&quot;)) row(&quot;EmergencyType&quot;) = CStr(If(ws.Cells(r, 5).Value2, &quot;&quot;)) row(&quot;RequiredDepartment&quot;) = CStr(If(ws.Cells(r, 6).Value2, &quot;&quot;)) row(&quot;VentilatorRequired&quot;) = CStr(If(ws.Cells(r, 7).Value2, &quot;No&quot;)) row(&quot;BloodGroup&quot;) = CStr(If(ws.Cells(r, 8).Value2, &quot;&quot;)) row(&quot;BloodUnits&quot;) = CStr(If(ws.Cells(r, 9).Value2, &quot;0&quot;)) row(&quot;RowNum&quot;) = r.ToString() rows.Add(row) End If Next wb.Close(False) xlApp.Quit() System.Runtime.InteropServices.Marshal.ReleaseComObject(xlApp) v_InputRows = rows v_TotalRows = rows.Count" DisplayName="Read PatientInput.xlsx" sap2010:WorkflowViewState.IdRef="InvokeCode_2">
-      <ui:InvokeCode.Arguments>
-        <InArgument x:TypeArguments="x:Object" x:Key="v_Config">[v_Config]</InArgument>
-        <OutArgument x:TypeArguments="x:Object" x:Key="v_InputRows">[v_InputRows]</OutArgument>
-        <OutArgument x:TypeArguments="x:Int32" x:Key="v_TotalRows">[v_TotalRows]</OutArgument>
-      </ui:InvokeCode.Arguments>
-    </ui:InvokeCode>
-    <ui:LogMessage DisplayName="Log: Patients Loaded" sap2010:WorkflowViewState.IdRef="LogMessage_6" Level="Info" Message="[&quot;[Main] &quot; &amp; v_TotalRows &amp; &quot; pending emergency patient cases loaded from PatientInput.xlsx&quot;]" />
-    <While DisplayName="Process Each Patient Case" sap2010:WorkflowViewState.IdRef="While_1" Condition="[v_RowIndex &lt; v_TotalRows]">
-      <Sequence DisplayName="Body" sap2010:WorkflowViewState.IdRef="Sequence_5">
-        <TryCatch DisplayName="TryCatch: Per-Case Processing" sap2010:WorkflowViewState.IdRef="TryCatch_1">
+    <Assign DisplayName="Cast config" sap2010:WorkflowViewState.IdRef="Assign_1">
+      <Assign.To>
+        <OutArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[v_Cfg]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[CType(v_Config, Dictionary(Of String, String))]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Project root" sap2010:WorkflowViewState.IdRef="Assign_2">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[v_ProjRoot]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[v_Cfg("ProjectRoot")]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Required docs list" sap2010:WorkflowViewState.IdRef="Assign_3">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[v_ReqDocsCsv]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[If(v_Cfg.ContainsKey("RequiredDocumentsList"), v_Cfg("RequiredDocumentsList"), If(v_Cfg.ContainsKey("RequiredDocuments"), v_Cfg("RequiredDocuments"), "ID_Proof,Insurance,Consent_Form,Medical_Report"))]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <ui:ReadTextFile File="{x:Null}" Content="[v_InputRaw]" DisplayName="Read PatientInput.psv" FileName="[System.IO.Path.Combine(v_ProjRoot, &quot;Data&quot;, &quot;PatientInput.psv&quot;)]" sap2010:WorkflowViewState.IdRef="ReadTextFile_1" />
+    <Assign DisplayName="Pending request lines" sap2010:WorkflowViewState.IdRef="Assign_4">
+      <Assign.To>
+        <OutArgument x:TypeArguments="scg:List(x:String)">[v_Pending]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:List(x:String)">[v_InputRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l &lt;&gt; "" AndAlso l.Split("|"c).Length &gt;= 10 AndAlso l.Split("|"c)(9).Trim() = "Pending").ToList()]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Count" sap2010:WorkflowViewState.IdRef="Assign_5">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:Int32">[v_Total]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:Int32">[v_Pending.Count]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: cases loaded" sap2010:WorkflowViewState.IdRef="LogMessage_2" Level="Info" Message="[&quot;[Main] &quot; &amp; v_Total &amp; &quot; pending emergency case(s) loaded&quot;]" />
+    <While DisplayName="Process each case" sap2010:WorkflowViewState.IdRef="While_1" Condition="[v_Idx &lt; v_Total]">
+      <Sequence DisplayName="Case body" sap2010:WorkflowViewState.IdRef="Sequence_5">
+        <Assign DisplayName="Split fields" sap2010:WorkflowViewState.IdRef="Assign_6">
+          <Assign.To>
+            <OutArgument x:TypeArguments="scg:List(x:String)">[v_F]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="scg:List(x:String)">[v_Pending(v_Idx).Split("|"c).ToList()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="PatientId" sap2010:WorkflowViewState.IdRef="Assign_7">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_PatientId]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_F(0).Trim()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="PatientName" sap2010:WorkflowViewState.IdRef="Assign_8">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_PatientName]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_F(1).Trim()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="Dept" sap2010:WorkflowViewState.IdRef="Assign_9">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_Dept]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_F(5).Trim()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="EmergType" sap2010:WorkflowViewState.IdRef="Assign_10">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_EmergType]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_F(4).Trim()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="VentReq" sap2010:WorkflowViewState.IdRef="Assign_11">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:Boolean">[v_VentReq]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:Boolean">[v_F(6).Trim().ToUpper() = "YES"]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="BloodGroup" sap2010:WorkflowViewState.IdRef="Assign_12">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_BloodGroup]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_F(7).Trim()]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="BloodUnits" sap2010:WorkflowViewState.IdRef="Assign_13">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:Int32">[v_BloodUnits]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:Int32">[CInt(v_F(8).Trim())]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <Assign DisplayName="CaseId (deterministic)" sap2010:WorkflowViewState.IdRef="Assign_14">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[v_Cfg("CaseIdPrefix") &amp; v_PatientId.Replace("P", "")]</InArgument>
+          </Assign.Value>
+        </Assign>
+        <TryCatch DisplayName="Per-case processing" sap2010:WorkflowViewState.IdRef="TryCatch_1">
           <TryCatch.Try>
-            <Sequence DisplayName="Process One Case" sap2010:WorkflowViewState.IdRef="Sequence_3">
-              <ui:InvokeCode ContinueOnError="{x:Null}" Code="Dim rows As List(Of Dictionary(Of String, String)) = CType(v_InputRows, List(Of Dictionary(Of String, String))) Dim row As Dictionary(Of String, String) = rows(v_RowIndex) v_PatientId = row(&quot;PatientId&quot;) v_PatientName = row(&quot;Name&quot;) v_RequiredDept = row(&quot;RequiredDepartment&quot;) v_EmergencyType = row(&quot;EmergencyType&quot;) v_BloodGroup = row(&quot;BloodGroup&quot;) v_VentRequired = row(&quot;VentilatorRequired&quot;).Trim().ToUpper() = &quot;YES&quot; Integer.TryParse(row(&quot;BloodUnits&quot;), v_BloodUnits) ' Generate Case ID: prefix + PatientId suffix + timestamp Dim cfg As Dictionary(Of String, String) = CType(v_Config, Dictionary(Of String, String)) Dim prefix As String = If(cfg.ContainsKey(&quot;CaseIdPrefix&quot;), cfg(&quot;CaseIdPrefix&quot;), &quot;ER&quot;) v_CaseId = prefix &amp; v_PatientId.Replace(&quot;P&quot;,&quot;&quot;) &amp; DateTime.Now.ToString(&quot;HHmmss&quot;)" DisplayName="Load Current Patient Row" sap2010:WorkflowViewState.IdRef="InvokeCode_3">
-                <ui:InvokeCode.Arguments>
-                  <InArgument x:TypeArguments="x:Object" x:Key="v_InputRows">[v_InputRows]</InArgument>
-                  <InArgument x:TypeArguments="x:Int32" x:Key="v_RowIndex">[v_RowIndex]</InArgument>
-                  <InArgument x:TypeArguments="x:Object" x:Key="v_Config">[v_Config]</InArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_PatientId">[v_PatientId]</OutArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_PatientName">[v_PatientName]</OutArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_RequiredDept">[v_RequiredDept]</OutArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_EmergencyType">[v_EmergencyType]</OutArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_BloodGroup">[v_BloodGroup]</OutArgument>
-                  <OutArgument x:TypeArguments="x:Boolean" x:Key="v_VentRequired">[v_VentRequired]</OutArgument>
-                  <OutArgument x:TypeArguments="x:Int32" x:Key="v_BloodUnits">[v_BloodUnits]</OutArgument>
-                  <OutArgument x:TypeArguments="x:String" x:Key="v_CaseId">[v_CaseId]</OutArgument>
-                </ui:InvokeCode.Arguments>
-              </ui:InvokeCode>
-              <ui:LogMessage DisplayName="Log: Case Started" sap2010:WorkflowViewState.IdRef="LogMessage_7" Level="Info" Message="[&quot;[Main] === CaseId=&quot; &amp; v_CaseId &amp; &quot; Patient=&quot; &amp; v_PatientName &amp; &quot; (Row &quot; &amp; (v_RowIndex+1) &amp; &quot;/&quot; &amp; v_TotalRows &amp; &quot;) ===&quot;]" />
-                            <ui:InvokeCode ContinueOnError="{x:Null}" DisplayName="Check for Duplicate CaseId" sap2010:WorkflowViewState.IdRef="InvokeCode_4">
-                <ui:InvokeCode.Code>
-                  <![CDATA[
-Dim pyFile As String = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uipath_dupcheck_" & v_CaseId & ".py")
-Dim dbPathSafe As String = v_DBPath.Replace("\", "/")
-Dim pyScript As String = "import sqlite3" & Environment.NewLine &
-    "conn = sqlite3.connect(r'" & dbPathSafe & "')" & Environment.NewLine &
-    "r = conn.execute(""SELECT COUNT(*) FROM EMERGENCY_CASES WHERE CaseId=?"", (""" & v_CaseId & """,)).fetchone()" & Environment.NewLine &
-    "print(r[0])" & Environment.NewLine &
-    "conn.close()"
-System.IO.File.WriteAllText(pyFile, pyScript)
-Dim psi As New System.Diagnostics.ProcessStartInfo("python", """" & pyFile & """")
-psi.UseShellExecute = False
-psi.CreateNoWindow = True
-psi.RedirectStandardOutput = True
-psi.RedirectStandardError = True
-Dim p As System.Diagnostics.Process = System.Diagnostics.Process.Start(psi)
-Dim cnt As String = p.StandardOutput.ReadToEnd().Trim()
-Dim errOut As String = p.StandardError.ReadToEnd().Trim()
-p.WaitForExit(5000)
-If p.ExitCode <> 0 Then Throw New Exception("SE-003: Duplicate-check Python failed: " & errOut) End If
-If Integer.Parse(cnt) > 0 Then Throw New Exception("BE-007: Duplicate CaseId detected: " & v_CaseId & " for PatientId=" & v_PatientId) End If
-Try : System.IO.File.Delete(pyFile) : Catch : End Try
-                  ]]>
-                </ui:InvokeCode.Code>
-                <ui:InvokeCode.Arguments>
-                  <InArgument x:TypeArguments="x:String" x:Key="v_DBPath">[v_DBPath]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="v_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="v_PatientId">[v_PatientId]</InArgument>
-                </ui:InvokeCode.Arguments>
-              </ui:InvokeCode>
-              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (Create Case)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_3" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
+            <Sequence sap2010:WorkflowViewState.IdRef="Sequence_3">
+              <ui:LogMessage DisplayName="Log: case start" sap2010:WorkflowViewState.IdRef="LogMessage_3" Level="Info" Message="[&quot;[Main] === &quot; &amp; v_CaseId &amp; &quot; &quot; &amp; v_PatientName &amp; &quot; (&quot; &amp; (v_Idx + 1) &amp; &quot;/&quot; &amp; v_Total &amp; &quot;) ===&quot;]" />
+              <ui:ReadTextFile File="{x:Null}" Content="[v_CasesRaw]" DisplayName="Read EMERGENCY_CASES.psv (dup check)" FileName="[System.IO.Path.Combine(v_DbFolder, &quot;EMERGENCY_CASES.psv&quot;)]" sap2010:WorkflowViewState.IdRef="ReadTextFile_2" />
+              <If Condition="[v_CasesRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Any(Function(l) l.Trim().StartsWith(v_CaseId &amp; &quot;|&quot;))]" DisplayName="Duplicate case?" sap2010:WorkflowViewState.IdRef="If_1">
+                <If.Then>
+                  <Throw Exception="[New Exception(&quot;BE-007: Duplicate emergency case &quot; &amp; v_CaseId &amp; &quot; already exists&quot;)]" sap2010:WorkflowViewState.IdRef="Throw_1" />
+                </If.Then>
+              </If>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (create)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_3" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">["Open"]</InArgument>
@@ -265,95 +230,115 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
                   <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">["Pending"]</InArgument>
                   <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[0]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">["Initialising"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                   <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[True]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: CASE_CREATED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_4" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["CASE_CREATED"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Emergency case " &amp; v_CaseId &amp; " created for patient " &amp; v_PatientId &amp; " (" &amp; v_PatientName &amp; "). Dept=" &amp; v_RequiredDept &amp; " EmergType=" &amp; v_EmergencyType]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Case " &amp; v_CaseId &amp; " for " &amp; v_PatientId &amp; " (" &amp; v_PatientName &amp; "), dept " &amp; v_Dept &amp; ", emergency " &amp; v_EmergType]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 1: VerifyDocuments" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_5" UnSafe="False" WorkflowFileName="Workflows\VerifyDocuments.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_ProjectRoot">[v_ProjRoot]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDocsCsv">[v_ReqDocsCsv]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_DocumentStatus">[v_DocStatus]</OutArgument>
-                  <OutArgument x:TypeArguments="x:Object" x:Key="out_MissingDocuments">[v_MissingDocs]</OutArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="out_MissingDocs">[v_MissingDocs]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_DocSummary">[v_DocSummary]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DOC_CHECKED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_6" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DOC_CHECKED"]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Description">[v_DocSummary]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 2: CheckBedAvailability" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_7" UnSafe="False" WorkflowFileName="Workflows\CheckBedAvailability.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDepartment">[v_RequiredDept]</InArgument>
-                  <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentRequired]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDepartment">[v_Dept]</InArgument>
+                  <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentReq]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_BedStatus">[v_BedStatus]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_AvailableBedId">[v_BedId]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: BED_CHECKED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_8" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["BED_CHECKED"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Bed search for dept=" &amp; v_RequiredDept &amp; " VentRequired=" &amp; v_VentRequired &amp; ". Result: " &amp; v_BedStatus &amp; If(v_BedId &lt;&gt; "", " BedId=" &amp; v_BedId, "")]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Bed search dept=" &amp; v_Dept &amp; " ventReq=" &amp; v_VentReq &amp; " -&gt; " &amp; v_BedStatus &amp; If(v_BedId &lt;&gt; "", " (" &amp; v_BedId &amp; ")", "")]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 3: CheckVentilator" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_9" UnSafe="False" WorkflowFileName="Workflows\CheckVentilator.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[v_BedId]</InArgument>
-                  <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentRequired]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[v_BedId]</InArgument>
+                  <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentReq]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_VentilatorStatus">[v_VentStatus]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_VentilatorId">[v_VentId]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: VENT_CHECKED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_10" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["VENT_CHECKED"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Ventilator check: Status=" &amp; v_VentStatus &amp; If(v_VentId &lt;&gt; "", " VentId=" &amp; v_VentId, "")]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Ventilator: " &amp; v_VentStatus &amp; If(v_VentId &lt;&gt; "" AndAlso v_VentId &lt;&gt; "N/A", " (" &amp; v_VentId &amp; ")", "")]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 4: CheckBloodInventory" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_11" UnSafe="False" WorkflowFileName="Workflows\CheckBloodInventory.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_BloodGroup">[v_BloodGroup]</InArgument>
                   <InArgument x:TypeArguments="x:Int32" x:Key="in_RequiredUnits">[v_BloodUnits]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_BloodStatus">[v_BloodStatus]</OutArgument>
-                  <OutArgument x:TypeArguments="x:Int32" x:Key="out_AvailableUnits">[v_AvailableUnits]</OutArgument>
-                  <OutArgument x:TypeArguments="x:Boolean" x:Key="out_BelowThreshold">[v_BelowThreshold]</OutArgument>
+                  <OutArgument x:TypeArguments="x:Int32" x:Key="out_AvailableUnits">[v_AvailUnits]</OutArgument>
+                  <OutArgument x:TypeArguments="x:Boolean" x:Key="out_BelowThreshold">[v_BelowThr]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: BLOOD_CHECKED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_12" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["BLOOD_CHECKED"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Blood " &amp; v_BloodGroup &amp; ": Available=" &amp; v_AvailableUnits &amp; " Required=" &amp; v_BloodUnits &amp; " Status=" &amp; v_BloodStatus &amp; If(v_BelowThreshold, " BELOW_THRESHOLD", "")]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Blood " &amp; v_BloodGroup &amp; ": available " &amp; v_AvailUnits &amp; ", needed " &amp; v_BloodUnits &amp; " -&gt; " &amp; v_BloodStatus &amp; If(v_BelowThr, " (below threshold after reservation)", "")]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 4b: AssignCareTeam" UnSafe="False" WorkflowFileName="Workflows\AssignCareTeam.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDepartment">[v_Dept]</InArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="out_AttendingDoctorId">[v_AttDoctorId]</OutArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="out_AttendingDoctorName">[v_AttDoctorName]</OutArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="out_CareTeamStatus">[v_CareTeamStatus]</OutArgument>
+                  <OutArgument x:TypeArguments="x:String" x:Key="out_CareTeamSummary">[v_CareTeamSummary]</OutArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: CARE_TEAM" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_CareTeamStatus = "Assigned", "CARE_TEAM_ASSIGNED", "CARE_TEAM_UNAVAILABLE")]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">[v_CareTeamSummary]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 5: CalculateReadiness" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_13" UnSafe="False" WorkflowFileName="Workflows\CalculateReadiness.xaml">
@@ -362,25 +347,25 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
                   <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[v_BedStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[v_VentStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[v_BloodStatus]</InArgument>
-                  <OutArgument x:TypeArguments="x:Int32" x:Key="out_ReadinessScore">[v_ReadinessScore]</OutArgument>
+                  <OutArgument x:TypeArguments="x:Int32" x:Key="out_ReadinessScore">[v_Score]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_FinalStatus">[v_FinalStatus]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_PendingAction">[v_PendingAction]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: READINESS_CALC" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_14" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["READINESS_CALC"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Readiness score: " &amp; v_ReadinessScore &amp; "%  - " &amp; v_FinalStatus &amp; " | Pending: " &amp; v_PendingAction]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Readiness " &amp; v_Score &amp; "% - " &amp; v_FinalStatus &amp; " | pending: " &amp; v_PendingAction]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 6: GenerateCaseStatus" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_15" UnSafe="False" WorkflowFileName="Workflows\GenerateCaseStatus.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PatientName">[v_PatientName]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDept">[v_RequiredDept]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDept">[v_Dept]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[v_BedId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[v_BedStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorId">[v_VentId]</InArgument>
@@ -390,14 +375,15 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
                   <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[v_BloodStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_DocSummary">[v_DocSummary]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_DocumentStatus">[v_DocStatus]</InArgument>
-                  <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_ReadinessScore]</InArgument>
+                  <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_Score]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_FinalStatus">[v_FinalStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[v_PendingAction]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_StatusReport">[v_StatusReport]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
-              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (Post-Checks)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_16" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (post-checks)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_16" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">["Pending"]</InArgument>
@@ -405,112 +391,167 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
                   <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[v_BedStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[v_VentStatus]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[v_BloodStatus]</InArgument>
-                  <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_ReadinessScore]</InArgument>
+                  <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_Score]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[v_PendingAction]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                   <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[False]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
-              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: Initial Status" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_17" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: initial status" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_17" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Subject">["Emergency Case " &amp; v_CaseId &amp; "  - " &amp; v_FinalStatus &amp; " (" &amp; v_ReadinessScore &amp; "%)"]</InArgument>
                   <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Subject">["Emergency Case " &amp; v_CaseId &amp; " - " &amp; v_FinalStatus &amp; " (" &amp; v_Score &amp; "%)"]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 7: RequestHumanApproval" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_18" UnSafe="False" WorkflowFileName="Workflows\RequestHumanApproval.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                  <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport]</InArgument>
-                  <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_ApprovalDecision">[v_ApprovalDecision]</OutArgument>
                   <OutArgument x:TypeArguments="x:String" x:Key="out_ApproverNotes">[v_ApproverNotes]</OutArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
-              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: Approval Decision" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_19" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: approval decision" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_19" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_ApprovalDecision = "Approved", "APPROVED", "REJECTED")]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Approval decision: " &amp; v_ApprovalDecision &amp; " | Notes: " &amp; v_ApproverNotes]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_ApprovalDecision = "Approved", "APPROVED", If(v_ApprovalDecision = "Rejected", "REJECTED", "PENDING_APPROVAL"))]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Approval: " &amp; v_ApprovalDecision &amp; " | " &amp; v_ApproverNotes]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Staff"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
-              <If Condition="[v_ApprovalDecision = &quot;Approved&quot; AndAlso v_BedStatus = &quot;Available&quot; AndAlso (v_VentStatus = &quot;Available&quot; OrElse v_VentStatus = &quot;Not_Required&quot;) AndAlso v_BloodStatus = &quot;Available&quot;]" DisplayName="Approved AND Resources Available?" sap2010:WorkflowViewState.IdRef="If_1">
+              <If Condition="[v_ApprovalDecision = &quot;Approved&quot; AndAlso v_Score = 100 AndAlso v_DocStatus = &quot;Complete&quot; AndAlso v_BedStatus = &quot;Available&quot; AndAlso (v_VentStatus = &quot;Available&quot; OrElse v_VentStatus = &quot;Not_Required&quot;) AndAlso v_BloodStatus = &quot;Available&quot; AndAlso v_CareTeamStatus = &quot;Assigned&quot;]" DisplayName="Approved AND fully ready (100%)?" sap2010:WorkflowViewState.IdRef="If_2">
                 <If.Then>
-                  <Sequence DisplayName="Reserve and Finalise" sap2010:WorkflowViewState.IdRef="Sequence_1">
+                  <Sequence DisplayName="Reserve and finalise" sap2010:WorkflowViewState.IdRef="Sequence_1">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 7b: ScheduleTheatre" UnSafe="False" WorkflowFileName="Workflows\ScheduleTheatre.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_RequiredDepartment">[v_Dept]</InArgument>
+                        <OutArgument x:TypeArguments="x:String" x:Key="out_TheatreId">[v_TheatreId]</OutArgument>
+                        <OutArgument x:TypeArguments="x:String" x:Key="out_OtSlotId">[v_OtSlotId]</OutArgument>
+                        <OutArgument x:TypeArguments="x:String" x:Key="out_TheatreStatus">[v_TheatreStatus]</OutArgument>
+                        <OutArgument x:TypeArguments="x:String" x:Key="out_TheatreSummary">[v_TheatreSummary]</OutArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: THEATRE" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_TheatreStatus = "Booked", "THEATRE_BOOKED", If(v_TheatreStatus = "Not_Required", "THEATRE_NOT_REQUIRED", "THEATRE_UNAVAILABLE"))]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">[v_TheatreSummary]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <If DisplayName="Theatre required but unavailable?" Condition="[v_TheatreStatus = &quot;Unavailable&quot;]">
+                      <If.Then>
+                        <Throw DisplayName="Throw BE-008" Exception="[New Exception(&quot;BE-008: No operating theatre available for &quot; &amp; v_Dept &amp; &quot; (case &quot; &amp; v_CaseId &amp; &quot;)&quot;)]" />
+                      </If.Then>
+                    </If>
                     <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 8: ReserveResources" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_20" UnSafe="False" WorkflowFileName="Workflows\ReserveResources.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[v_BedId]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorId">[v_VentId]</InArgument>
-                        <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentRequired]</InArgument>
+                        <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorRequired">[v_VentReq]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BloodGroup">[v_BloodGroup]</InArgument>
                         <InArgument x:TypeArguments="x:Int32" x:Key="in_RequiredBloodUnits">[v_BloodUnits]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_TheatreId">[v_TheatreId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_OtSlotId">[v_OtSlotId]</InArgument>
                         <OutArgument x:TypeArguments="x:Boolean" x:Key="out_ReservationSuccess">[v_ReservationOk]</OutArgument>
                         <OutArgument x:TypeArguments="x:String" x:Key="out_FailureReason">[v_FailureReason]</OutArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
-                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (Final)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_21" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (final)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_21" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">[If(v_ReservationOk, "Approved", "Error")]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_DocumentStatus">[v_DocStatus]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[If(v_ReservationOk, "Reserved", v_BedStatus)]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[If(v_ReservationOk AndAlso v_VentRequired, "Reserved", v_VentStatus)]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[If(v_ReservationOk AndAlso v_VentReq, "Reserved", v_VentStatus)]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[If(v_ReservationOk, "Reserved", v_BloodStatus)]</InArgument>
-                        <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_ReadinessScore]</InArgument>
+                        <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_Score]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[If(v_ReservationOk, "None", "Reservation failed: " &amp; v_FailureReason)]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                         <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[False]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
-                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: Reservation" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_22" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: reservation" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_22" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_ReservationOk, "BED_RESERVED", "ROLLBACK")]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">[If(v_ReservationOk, "Resources reserved: Bed=" &amp; v_BedId &amp; " Vent=" &amp; v_VentId &amp; " Blood=" &amp; v_BloodGroup &amp; "x" &amp; v_BloodUnits, "Reservation failed/rolled back: " &amp; v_FailureReason)]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">[If(v_ReservationOk, "RESOURCES_RESERVED", "ROLLBACK")]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">[If(v_ReservationOk, "Reserved bed " &amp; v_BedId &amp; ", vent " &amp; v_VentId &amp; ", blood " &amp; v_BloodGroup &amp; "x" &amp; v_BloodUnits &amp; If(v_TheatreStatus = "Booked", ", theatre " &amp; v_TheatreId &amp; " (" &amp; v_OtSlotId &amp; ")", "") &amp; ", attending " &amp; v_AttDoctorName, "Reservation failed / rolled back: " &amp; v_FailureReason)]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
-                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: Final Result" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_23" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: final result" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_23" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport &amp; Environment.NewLine &amp; "RESERVATION: " &amp; If(v_ReservationOk, "COMPLETED SUCCESSFULLY", "FAILED  - " &amp; v_FailureReason) &amp; Environment.NewLine &amp; "Approver Notes: " &amp; v_ApproverNotes]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_Subject">[If(v_ReservationOk, "COMPLETED: Case " &amp; v_CaseId &amp; "  - Resources Reserved", "FAILED: Case " &amp; v_CaseId &amp; "  - Reservation Error")]</InArgument>
                         <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Subject">[If(v_ReservationOk, "COMPLETED: Case " &amp; v_CaseId &amp; " - resources reserved", "FAILED: Case " &amp; v_CaseId &amp; " - reservation error")]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport &amp; Environment.NewLine &amp; "RESERVATION: " &amp; If(v_ReservationOk, "COMPLETED", "FAILED - " &amp; v_FailureReason) &amp; Environment.NewLine &amp; "Approver notes: " &amp; v_ApproverNotes]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
+                    <If DisplayName="Reserved - confirm admission?" Condition="[v_ReservationOk]">
+                      <If.Then>
+                        <Sequence DisplayName="Confirm admission">
+                          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 9: ConfirmAdmission" UnSafe="False" WorkflowFileName="Workflows\ConfirmAdmission.xaml">
+                            <ui:InvokeWorkflowFile.Arguments>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_BedId">[v_BedId]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_AttendingDoctorId">[v_AttDoctorId]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_EmergencyType">[v_EmergType]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorId">[v_VentId]</InArgument>
+                              <InArgument x:TypeArguments="x:Boolean" x:Key="in_VentilatorReserved">[v_VentReq]</InArgument>
+                              <OutArgument x:TypeArguments="x:String" x:Key="out_AdmissionId">[v_AdmissionId]</OutArgument>
+                              <OutArgument x:TypeArguments="x:String" x:Key="out_AdmissionSummary">[v_AdmissionSummary]</OutArgument>
+                            </ui:InvokeWorkflowFile.Arguments>
+                          </ui:InvokeWorkflowFile>
+                          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: ADMISSION_CONFIRMED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                            <ui:InvokeWorkflowFile.Arguments>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_Action">["ADMISSION_CONFIRMED"]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_Description">[v_AdmissionId &amp; ": " &amp; v_AdmissionSummary]</InArgument>
+                              <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                            </ui:InvokeWorkflowFile.Arguments>
+                          </ui:InvokeWorkflowFile>
+                        </Sequence>
+                      </If.Then>
+                    </If>
                   </Sequence>
                 </If.Then>
                 <If.Else>
-                  <Sequence DisplayName="Not Approved / Resources Unavailable" sap2010:WorkflowViewState.IdRef="Sequence_2">
-                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (Rejected/Pending)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_24" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
+                  <Sequence DisplayName="No reservation" sap2010:WorkflowViewState.IdRef="Sequence_2">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="UpdateDatabase (no reservation)" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_24" UnSafe="False" WorkflowFileName="Workflows\UpdateDatabase.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">[If(v_ApprovalDecision = "Rejected", "Rejected", v_FinalStatus)]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">[If(v_ApprovalDecision = "Rejected", "Rejected", If(v_ApprovalDecision = "Pending", "PENDING_APPROVAL", v_FinalStatus))]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_DocumentStatus">[v_DocStatus]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BedStatus">[v_BedStatus]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_VentilatorStatus">[v_VentStatus]</InArgument>
                         <InArgument x:TypeArguments="x:String" x:Key="in_BloodStatus">[v_BloodStatus]</InArgument>
-                        <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_ReadinessScore]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[If(v_ApprovalDecision = "Rejected", "Rejected by staff: " &amp; v_ApproverNotes, v_PendingAction)]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
+                        <InArgument x:TypeArguments="x:Int32" x:Key="in_ReadinessScore">[v_Score]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">[If(v_ApprovalDecision = "Rejected", "Rejected by staff: " &amp; v_ApproverNotes, If(v_CareTeamStatus &lt;&gt; "Assigned", v_PendingAction &amp; "; " &amp; v_CareTeamSummary, v_PendingAction))]</InArgument>
                         <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[False]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
-                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: No Reservation" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_25" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: no reservation" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_25" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport &amp; Environment.NewLine &amp; "NO RESERVATION  - " &amp; If(v_ApprovalDecision = "Rejected", "REJECTED by staff. Notes: " &amp; v_ApproverNotes, "Resources pending: " &amp; v_PendingAction)]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
-                        <InArgument x:TypeArguments="x:String" x:Key="in_Subject">["PENDING: Case " &amp; v_CaseId &amp; "  - " &amp; v_FinalStatus &amp; " (" &amp; v_ReadinessScore &amp; "%)"]</InArgument>
                         <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Subject">["PENDING: Case " &amp; v_CaseId &amp; " - " &amp; v_FinalStatus &amp; " (" &amp; v_Score &amp; "%)"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[v_StatusReport &amp; Environment.NewLine &amp; "NO RESERVATION - " &amp; If(v_ApprovalDecision = "Rejected", "rejected by staff", "pending: " &amp; v_PendingAction)]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
                   </Sequence>
@@ -518,14 +559,14 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
               </If>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: CASE_CLOSED" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_26" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                 <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["CASE_CLOSED"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Case " &amp; v_CaseId &amp; " processing complete. Final score=" &amp; v_ReadinessScore &amp; "% Approval=" &amp; v_ApprovalDecision &amp; " Reservation=" &amp; v_ReservationOk]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Processing complete. Score " &amp; v_Score &amp; "% approval " &amp; v_ApprovalDecision &amp; " reservation " &amp; v_ReservationOk]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                  <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
-              <ui:LogMessage DisplayName="Log: Case Complete" sap2010:WorkflowViewState.IdRef="LogMessage_8" Level="Info" Message="[&quot;[Main] === CaseId=&quot; &amp; v_CaseId &amp; &quot; COMPLETE  - Score=&quot; &amp; v_ReadinessScore &amp; &quot;% Status=&quot; &amp; v_FinalStatus &amp; &quot; Approval=&quot; &amp; v_ApprovalDecision &amp; &quot; ===&quot;]" />
+              <ui:LogMessage DisplayName="Log: case complete" sap2010:WorkflowViewState.IdRef="LogMessage_4" Level="Info" Message="[&quot;[Main] === &quot; &amp; v_CaseId &amp; &quot; COMPLETE - &quot; &amp; v_Score &amp; &quot;% &quot; &amp; v_FinalStatus &amp; &quot; approval=&quot; &amp; v_ApprovalDecision &amp; &quot; ===&quot;]" />
             </Sequence>
           </TryCatch.Try>
           <TryCatch.Catches>
@@ -534,23 +575,23 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
                 <ActivityAction.Argument>
                   <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Case" />
                 </ActivityAction.Argument>
-                <Sequence DisplayName="Handle Case Exception" sap2010:WorkflowViewState.IdRef="Sequence_4">
+                <Sequence DisplayName="Handle case exception" sap2010:WorkflowViewState.IdRef="Sequence_4">
                   <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="HandleException" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_27" UnSafe="False" WorkflowFileName="Workflows\HandleException.xaml">
                     <ui:InvokeWorkflowFile.Arguments>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                      <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[If(String.IsNullOrEmpty(v_CaseId), "UNKNOWN", v_CaseId)]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionType">[If(ex_Case.Message.StartsWith("BE-"), "BusinessException", "SystemException")]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_ExceptionMessage">[ex_Case.Message]</InArgument>
-                      <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
-                      <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                     </ui:InvokeWorkflowFile.Arguments>
                   </ui:InvokeWorkflowFile>
                   <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: EXCEPTION" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_28" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
                     <ui:InvokeWorkflowFile.Arguments>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[If(String.IsNullOrEmpty(v_CaseId), "UNKNOWN", v_CaseId)]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_Action">["EXCEPTION"]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_Description">[ex_Case.GetType().Name &amp; ": " &amp; ex_Case.Message]</InArgument>
                       <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
-                      <InArgument x:TypeArguments="x:String" x:Key="in_DBPath">[v_DBPath]</InArgument>
                     </ui:InvokeWorkflowFile.Arguments>
                   </ui:InvokeWorkflowFile>
                 </Sequence>
@@ -558,16 +599,24 @@ Try : System.IO.File.Delete(pyFile) : Catch : End Try
             </Catch>
           </TryCatch.Catches>
         </TryCatch>
-        <Assign DisplayName="Increment Row Index" sap2010:WorkflowViewState.IdRef="Assign_1">
+        <Assign DisplayName="Next" sap2010:WorkflowViewState.IdRef="Assign_15">
           <Assign.To>
-            <OutArgument x:TypeArguments="x:Int32">[v_RowIndex]</OutArgument>
+            <OutArgument x:TypeArguments="x:Int32">[v_Idx]</OutArgument>
           </Assign.To>
           <Assign.Value>
-            <InArgument x:TypeArguments="x:Int32">[v_RowIndex + 1]</InArgument>
+            <InArgument x:TypeArguments="x:Int32">[v_Idx + 1]</InArgument>
           </Assign.Value>
         </Assign>
       </Sequence>
     </While>
-    <ui:LogMessage DisplayName="Log: All Cases Complete" sap2010:WorkflowViewState.IdRef="LogMessage_9" Level="Info" Message="[&quot;[Main] === All &quot; &amp; v_TotalRows &amp; &quot; emergency cases processed. Bot run complete. ===&quot;]" />
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="GenerateDashboard" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_29" UnSafe="False" WorkflowFileName="Workflows\GenerateDashboard.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+        <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
+        <InArgument x:TypeArguments="x:Int32" x:Key="in_TotalCases">[v_Total]</InArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+    <ui:LogMessage DisplayName="Log: all done" sap2010:WorkflowViewState.IdRef="LogMessage_5" Level="Info" Message="[&quot;[Main] === All &quot; &amp; v_Total &amp; &quot; emergency case(s) processed. Bot run complete. ===&quot;]" />
+    <ui:LogMessage DisplayName="Log: dashboard hint" sap2010:WorkflowViewState.IdRef="LogMessage_6" Level="Info" Message="[&quot;[Main] Operations dashboard: &quot; &amp; System.IO.Path.Combine(v_Cfg(&quot;ProjectRoot&quot;), &quot;Data&quot;, &quot;Dashboard&quot;, &quot;index.html&quot;)]" />
   </Sequence>
 </Activity>

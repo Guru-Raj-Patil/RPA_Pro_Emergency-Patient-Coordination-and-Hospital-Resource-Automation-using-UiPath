@@ -1,120 +1,82 @@
-<Activity xmlns:s="clr-namespace:System;assembly=mscorlib"
-  xmlns:uasa="clr-namespace:UiPath.Activities.System.Arrays;assembly=UiPath.System.Activities"
-  xmlns:ui="http://schemas.uipath.com/workflow/activities"
-  mc:Ignorable="sap sap2010" x:Class="Workflows_SendNotification"
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_SendNotification"
   xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
   xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
   xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
-  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=mscorlib"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <x:Members>
-    <x:Property Name="in_StatusReport"   Type="InArgument(x:String)" />
-    <x:Property Name="in_CaseId"         Type="InArgument(x:String)" />
-    <x:Property Name="in_Subject"        Type="InArgument(x:String)" />
-    <x:Property Name="in_Config"         Type="InArgument(x:Object)" />
+    <x:Property Name="in_Config" Type="InArgument(x:Object)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_Subject" Type="InArgument(x:String)" />
+    <x:Property Name="in_StatusReport" Type="InArgument(x:String)" />
   </x:Members>
   <TextExpression.NamespacesForImplementation>
     <sco:Collection x:TypeArguments="x:String">
       <x:String>System</x:String>
-      <x:String>System.IO</x:String>
-      <x:String>System.Text</x:String>
       <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
     </sco:Collection>
   </TextExpression.NamespacesForImplementation>
   <TextExpression.ReferencesForImplementation>
     <sco:Collection x:TypeArguments="AssemblyReference">
       <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
       <AssemblyReference>mscorlib</AssemblyReference>
-      <AssemblyReference>System.Net.Mail</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
     </sco:Collection>
   </TextExpression.ReferencesForImplementation>
-  <Sequence DisplayName="SendNotification_Sequence" sap2010:WorkflowViewState.IdRef="Sequence_SN">
-    <TryCatch DisplayName="TryCatch: Send/Write Notification">
+  <Sequence DisplayName="SendNotification" sap2010:WorkflowViewState.IdRef="Sequence_SN">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:String)" Name="v_Cfg" />
+      <Variable x:TypeArguments="x:String" Name="v_Dir" />
+      <Variable x:TypeArguments="x:String" Name="v_File" />
+      <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Cast config">
+      <Assign.To><OutArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[v_Cfg]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[CType(in_Config, Dictionary(Of String, String))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Notifications dir">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Dir]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Cfg("ProjectRoot"), If(v_Cfg.ContainsKey("EmailOutputFolder"), v_Cfg("EmailOutputFolder"), "Data\Notifications"))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Ensure dir">
+      <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.IO.Directory.CreateDirectory(v_Dir)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Output file">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_File]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Dir, "Notification_" &amp; in_CaseId &amp; "_" &amp; DateTime.Now.ToString("yyyyMMdd_HHmmss") &amp; ".html")]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Write notification (non-fatal)">
       <TryCatch.Try>
-        <ui:InvokeCode DisplayName="Send or Simulate Email Notification">
-          <ui:InvokeCode.Code>
-            <![CDATA[
-Dim cfg As Dictionary(Of String, String) = CType(in_Config, Dictionary(Of String, String))
-Dim emailSimulated As Boolean = Not cfg.ContainsKey("EmailSimulated") OrElse
-    cfg("EmailSimulated").Trim().ToUpper() = "TRUE"
-
-' Build HTML email body
-Dim htmlBody As New System.Text.StringBuilder()
-htmlBody.AppendLine("<!DOCTYPE html><html><head>")
-htmlBody.AppendLine("<style>body{font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;margin:0;padding:20px;}")
-htmlBody.AppendLine(".card{background:#fff;border-radius:8px;padding:24px;max-width:700px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,.1);}")
-htmlBody.AppendLine(".header{background:#004687;color:#fff;padding:16px 24px;border-radius:8px 8px 0 0;margin:-24px -24px 20px;}")
-htmlBody.AppendLine(".badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:bold;}")
-htmlBody.AppendLine(".badge-green{background:#d4edda;color:#155724;} .badge-yellow{background:#fff3cd;color:#856404;} .badge-red{background:#f8d7da;color:#721c24;}")
-htmlBody.AppendLine("pre{background:#f8f9fa;padding:16px;border-radius:4px;font-size:13px;border-left:4px solid #004687;overflow-x:auto;}")
-htmlBody.AppendLine(".footer{margin-top:20px;font-size:11px;color:#6c757d;border-top:1px solid #dee2e6;padding-top:12px;}")
-htmlBody.AppendLine("</style></head><body><div class='card'>")
-htmlBody.AppendLine(String.Format("<div class='header'><h2 style='margin:0'>Emergency Case Notification</h2><p style='margin:4px 0 0'>Case ID: {0} | {1}</p></div>", in_CaseId, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")))
-htmlBody.AppendLine(String.Format("<h3>Subject: {0}</h3>", System.Net.WebUtility.HtmlEncode(in_Subject)))
-htmlBody.AppendLine("<hr/><pre>")
-htmlBody.AppendLine(System.Net.WebUtility.HtmlEncode(in_StatusReport))
-htmlBody.AppendLine("</pre>")
-htmlBody.AppendLine("<div class='footer'><p>This is an automated administrative notification from the City General Hospital RPA System.</p>")
-htmlBody.AppendLine("<p><strong>Important:</strong> This notification contains administrative readiness information only. All clinical decisions remain the responsibility of authorised medical staff.</p></div>")
-htmlBody.AppendLine("</div></body></html>")
-
-If emailSimulated Then
-    ' Write HTML to file (simulated email)
-    Dim projRoot As String = cfg("ProjectRoot")
-    Dim notifDir As String = System.IO.Path.Combine(projRoot,
-        If(cfg.ContainsKey("EmailOutputFolder"), cfg("EmailOutputFolder"), "Data\Notifications"))
-    If Not System.IO.Directory.Exists(notifDir) Then System.IO.Directory.CreateDirectory(notifDir)
-    Dim fileName As String = String.Format("Notification_{0}_{1}.html",
-        in_CaseId, DateTime.Now.ToString("yyyyMMdd_HHmmss"))
-    Dim filePath As String = System.IO.Path.Combine(notifDir, fileName)
-    System.IO.File.WriteAllText(filePath, htmlBody.ToString(), System.Text.Encoding.UTF8)
-    Console.WriteLine("[SendNotification] Email simulated. File: " & filePath)
-Else
-    ' Send real SMTP email
-    Dim smtpHost As String = cfg("SMTPServer")
-    Dim smtpPort As Integer = Integer.Parse(cfg("SMTPPort"))
-    Dim fromAddr As String  = cfg("SMTPFrom")
-    Dim toAddr   As String  = cfg("StaffEmailTo")
-    Dim ccAddr   As String  = If(cfg.ContainsKey("StaffEmailCC"), cfg("StaffEmailCC"), "")
-
-    Dim mailMsg As New System.Net.Mail.MailMessage()
-    mailMsg.From    = New System.Net.Mail.MailAddress(fromAddr, "Hospital RPA Bot")
-    mailMsg.Subject = "[Hospital RPA] " & in_Subject
-    mailMsg.Body    = htmlBody.ToString()
-    mailMsg.IsBodyHtml = True
-    mailMsg.To.Add(toAddr)
-    If Not String.IsNullOrEmpty(ccAddr) Then mailMsg.CC.Add(ccAddr)
-
-    Dim smtp As New System.Net.Mail.SmtpClient(smtpHost, smtpPort)
-    smtp.EnableSsl = True
-    smtp.Timeout   = 30000
-    smtp.Send(mailMsg)
-End If
-            ]]>
-          </ui:InvokeCode.Code>
-          <ui:InvokeCode.Arguments>
-            <InArgument x:TypeArguments="x:String" x:Key="in_StatusReport">[in_StatusReport]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
-            <InArgument x:TypeArguments="x:String" x:Key="in_Subject">[in_Subject]</InArgument>
-            <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[in_Config]</InArgument>
-          </ui:InvokeCode.Arguments>
-        </ui:InvokeCode>
+        <ui:WriteTextFile DisplayName="Write HTML notification" FileName="[v_File]"
+          Text="[&quot;&lt;html&gt;&lt;head&gt;&lt;meta charset='utf-8'&gt;&lt;style&gt;body{font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;padding:20px}.card{background:#fff;border-radius:8px;padding:24px;max-width:720px;margin:auto;box-shadow:0 2px 8px rgba(0,0,0,.1)}.hdr{background:#004687;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:-24px -24px 16px}pre{background:#f8f9fa;padding:14px;border-left:4px solid #004687;white-space:pre-wrap;font-size:13px}.ftr{margin-top:16px;font-size:11px;color:#6c757d;border-top:1px solid #dee2e6;padding-top:10px}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;div class='card'&gt;&lt;div class='hdr'&gt;&lt;h2 style='margin:0'&gt;Emergency Case Notification&lt;/h2&gt;&lt;p style='margin:4px 0 0'&gt;&quot; &amp; in_CaseId &amp; &quot; | &quot; &amp; DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;) &amp; &quot;&lt;/p&gt;&lt;/div&gt;&lt;h3&gt;&quot; &amp; in_Subject.Replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;).Replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;) &amp; &quot;&lt;/h3&gt;&lt;pre&gt;&quot; &amp; in_StatusReport.Replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;).Replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;) &amp; &quot;&lt;/pre&gt;&lt;div class='ftr'&gt;Automated administrative notification from City General Hospital RPA. Administrative readiness information only - all clinical decisions remain with authorised medical staff.&lt;/div&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;&quot;]" />
       </TryCatch.Try>
       <TryCatch.Catches>
         <Catch x:TypeArguments="s:Exception">
           <ActivityAction x:TypeArguments="s:Exception">
             <ActivityAction.Argument>
-              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Mail" />
+              <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_N" />
             </ActivityAction.Argument>
-            <ui:LogMessage Level="Warn"
-              Message="[&quot;[SendNotification] SE-002 Non-fatal email error for CaseId=&quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_Mail.Message]" />
+            <ui:LogMessage DisplayName="Log: notify failed" Level="Warn"
+              Message="[&quot;[SendNotification] Non-fatal: &quot; &amp; ex_N.Message]" />
           </ActivityAction>
         </Catch>
       </TryCatch.Catches>
     </TryCatch>
 
-    <ui:LogMessage DisplayName="Log: Notification Sent" Level="Info"
-      Message="[&quot;[SendNotification] CaseId=&quot; &amp; in_CaseId &amp; &quot;  - Notification sent/written for: &quot; &amp; in_Subject]" />
+    <ui:LogMessage DisplayName="Log: notification written" Level="Info"
+      Message="[&quot;[SendNotification] &quot; &amp; in_CaseId &amp; &quot;  - &quot; &amp; in_Subject]" />
   </Sequence>
 </Activity>

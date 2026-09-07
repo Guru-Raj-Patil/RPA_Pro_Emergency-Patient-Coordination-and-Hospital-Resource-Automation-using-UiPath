@@ -1,0 +1,32 @@
+ACTION REQUIRED - authorised staff review
+Case: ER1031
+Created: 2026-09-06 19:05:46
+
+==============================================
+ EMERGENCY CASE STATUS REPORT
+==============================================
+ Case ID : ER1031
+ Patient : Deepa Reddy
+ Department : Cardiology
+ Generated : 2026-09-06 19:05:46
+----------------------------------------------
+ RESOURCE STATUS
+ Bed : CARD-01 - Available
+ Ventilator : Not Required
+ Blood : AB- x1 - Available
+ Documents : 4/4 documents present
+----------------------------------------------
+ READINESS ASSESSMENT (administrative only)
+ Readiness : 100%
+ Status : READY_FOR_APPROVAL
+ Pending : None
+----------------------------------------------
+ SCORING BREAKDOWN
+ Documents : 25/25
+ Bed : 25/25
+ Ventilator : 25/25
+ Blood : 25/25
+==============================================
+ NOTE: administrative readiness only. All clinical
+ decisions remain with authorised medical staff.
+==============================================

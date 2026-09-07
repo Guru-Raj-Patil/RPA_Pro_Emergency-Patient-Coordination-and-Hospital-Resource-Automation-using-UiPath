@@ -1,0 +1,32 @@
+ACTION REQUIRED - authorised staff review
+Case: ER1025
+Created: 2026-09-06 19:05:44
+
+==============================================
+ EMERGENCY CASE STATUS REPORT
+==============================================
+ Case ID : ER1025
+ Patient : Ananya Singh
+ Department : ICU
+ Generated : 2026-09-06 19:05:44
+----------------------------------------------
+ RESOURCE STATUS
+ Bed : ICU-04 - Available
+ Ventilator : Not Required
+ Blood : A+ x2 - Available
+ Documents : 3/4 documents present. Missing: Medical_Report
+----------------------------------------------
+ READINESS ASSESSMENT (administrative only)
+ Readiness : 75%
+ Status : PENDING_DOCUMENTATION
+ Pending : Complete document verification
+----------------------------------------------
+ SCORING BREAKDOWN
+ Documents : 0/25
+ Bed : 25/25
+ Ventilator : 25/25
+ Blood : 25/25
+==============================================
+ NOTE: administrative readiness only. All clinical
+ decisions remain with authorised medical staff.
+==============================================

@@ -1,0 +1,255 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_PostDischargeFollowUp"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_ForceDueNow" Type="InArgument(x:Boolean)" />
+    <x:Property Name="out_ClosedCount" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="PostDischargeFollowUp" sap2010:WorkflowViewState.IdRef="Sequence_PF">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
+      <Variable x:TypeArguments="x:String" Name="v_CfgRaw" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_DemoMode" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_DisRaw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Cands" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Idx" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_F" />
+      <Variable x:TypeArguments="x:String" Name="v_CaseId" />
+      <Variable x:TypeArguments="x:String" Name="v_PatId" />
+      <Variable x:TypeArguments="x:String" Name="v_FollowUp" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmRow" />
+      <Variable x:TypeArguments="x:String" Name="v_Status" />
+      <Variable x:TypeArguments="x:String" Name="v_AttId" />
+      <Variable x:TypeArguments="x:String" Name="v_PatRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_PName" />
+      <Variable x:TypeArguments="x:String" Name="v_DrRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_AttName" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_Due" />
+      <Variable x:TypeArguments="x:String" Name="v_Buf" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ClosedCount" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="notifications folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Read FollowUpDemoMode flag (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read Config.psv"
+            FileName="[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Config.psv&quot;)]" Content="[v_CfgRaw]" />
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_DemoMode]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "followupdemomode").Select(Function(a) a(1).Trim().ToLower() = "true").DefaultIfEmpty(False).First()]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_C" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: no demo flag" Level="Warn"
+              Message="[&quot;[PostDischargeFollowUp] Config flag not read - date-gated follow-up only (&quot; &amp; ex_C.Message &amp; &quot;)&quot;]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:LogMessage DisplayName="Log: follow-up start" Level="Info"
+      Message="[&quot;[PostDischargeFollowUp] Scanning discharged episodes for follow-up / closure in &quot; &amp; v_Db &amp; &quot;  (forceDueNow=&quot; &amp; in_ForceDueNow.ToString() &amp; &quot; demoMode=&quot; &amp; v_DemoMode.ToString() &amp; &quot;)&quot;]" />
+
+    <TryCatch DisplayName="Read DISCHARGES.psv">
+      <TryCatch.Try>
+        <ui:ReadTextFile DisplayName="Read DISCHARGES.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;DISCHARGES.psv&quot;)]" Content="[v_DisRaw]" />
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_D" /></ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-008"
+              Exception="[New Exception(&quot;SE-008: PostDischargeFollowUp could not read DISCHARGES.psv: &quot; &amp; ex_D.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Discharged rows">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Cands]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_DisRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 10 AndAlso l.Split("|"c)(9).Trim() &lt;&gt; "").ToList()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Reset counter">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ClosedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
+    </Assign>
+
+    <While DisplayName="Each discharged episode" Condition="[v_Idx &lt; v_Cands.Count]">
+      <Sequence DisplayName="Follow up one episode">
+        <TryCatch DisplayName="Process one episode (isolated)">
+          <TryCatch.Try>
+            <Sequence>
+              <Assign DisplayName="Fields">
+                <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_F]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Cands(v_Idx).Split("|"c).ToList()]</InArgument></Assign.Value>
+              </Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(1).Trim()]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PatId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(2).Trim()]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_FollowUp]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(7).Trim()]</InArgument></Assign.Value></Assign>
+
+              <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_AdmRaw]" />
+              <Assign DisplayName="Admission row">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_AdmRow]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 9 AndAlso l.Split("|"c)(1).Trim() = v_CaseId).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Admission status">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_Status]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(v_AdmRow), "Discharged", v_AdmRow.Split("|"c)(7).Trim())]</InArgument></Assign.Value>
+              </Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_AttId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(v_AdmRow), "", v_AdmRow.Split("|"c)(4).Trim())]</InArgument></Assign.Value></Assign>
+
+              <Assign DisplayName="Follow-up due?">
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Due]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Boolean">[in_ForceDueNow OrElse v_DemoMode OrElse (Not String.IsNullOrEmpty(v_FollowUp) AndAlso DateTime.Parse(v_FollowUp).Date &lt;= DateTime.Now.Date)]</InArgument></Assign.Value>
+              </Assign>
+
+              <If DisplayName="Already closed?" Condition="[v_Status = &quot;Closed&quot;]">
+                <If.Then>
+                  <ui:LogMessage DisplayName="Log: already closed" Level="Info"
+                    Message="[&quot;[PostDischargeFollowUp] &quot; &amp; v_CaseId &amp; &quot; already closed - skipping&quot;]" />
+                </If.Then>
+                <If.Else>
+                  <If DisplayName="Due for follow-up?" Condition="[v_Due]">
+                    <If.Then>
+                      <Sequence DisplayName="Send reminder and close episode">
+                        <ui:ReadTextFile DisplayName="Read PATIENTS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENTS.psv&quot;)]" Content="[v_PatRaw]" />
+                        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PName]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_PatRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim() = v_PatId).Select(Function(a) a(1).Trim()).DefaultIfEmpty(v_PatId).First()]</InArgument></Assign.Value></Assign>
+                        <ui:ReadTextFile DisplayName="Read DOCTORS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;DOCTORS.psv&quot;)]" Content="[v_DrRaw]" />
+                        <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_AttName]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_DrRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim() = v_AttId).Select(Function(a) a(1).Trim()).DefaultIfEmpty(v_AttId).First()]</InArgument></Assign.Value></Assign>
+
+                        <ui:WriteTextFile DisplayName="Write follow-up reminder"
+                          FileName="[System.IO.Path.Combine(v_Notif, &quot;FOLLOWUP_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                          Text="[&quot;FOLLOW-UP REMINDER&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PName &amp; &quot; (&quot; &amp; v_PatId &amp; &quot;)&quot; &amp; Environment.NewLine &amp; &quot;Dear &quot; &amp; v_PName &amp; &quot;, please attend your post-discharge review on &quot; &amp; If(String.IsNullOrEmpty(v_FollowUp), DateTime.Now.ToString(&quot;yyyy-MM-dd&quot;), v_FollowUp) &amp; &quot; with &quot; &amp; v_AttName &amp; &quot;.&quot; &amp; Environment.NewLine &amp; &quot;A copy of the discharge summary has been shared with your referring physician.&quot; &amp; Environment.NewLine &amp; &quot;Issued: &quot; &amp; v_Now &amp; &quot;   (administrative reminder generated by the coordination bot)&quot;]" />
+                        <ui:WriteTextFile DisplayName="Write episode-closure note"
+                          FileName="[System.IO.Path.Combine(v_Notif, &quot;CLOSED_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                          Text="[&quot;EMERGENCY EPISODE CLOSED&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PName &amp; Environment.NewLine &amp; &quot;Lifecycle: intake -&gt; documents -&gt; resources -&gt; care team -&gt; approval -&gt; reservation -&gt; admission -&gt; charge accrual -&gt; discharge certification -&gt; discharge processing -&gt; follow-up.&quot; &amp; Environment.NewLine &amp; &quot;Closed by the coordination bot at &quot; &amp; v_Now &amp; &quot;. No further automated action.&quot;]" />
+
+                        <ui:ReadTextFile DisplayName="Re-read ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_Buf]" />
+                        <Assign DisplayName="ADMISSIONS: Status -&gt; Closed">
+                          <Assign.To><OutArgument x:TypeArguments="x:String">[v_Buf]</OutArgument></Assign.To>
+                          <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 9 AndAlso l.Trim().Split("|"c)(1).Trim() = v_CaseId, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), l.Trim().Split("|"c)(3), l.Trim().Split("|"c)(4), l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), "Closed", l.Trim().Split("|"c)(8)}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                        </Assign>
+                        <ui:WriteTextFile DisplayName="Write ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Text="[v_Buf]" />
+
+                        <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: FOLLOWUP_SENT" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                          <ui:InvokeWorkflowFile.Arguments>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_Action">["FOLLOWUP_SENT"]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Follow-up reminder issued for " &amp; v_CaseId &amp; " (" &amp; v_PName &amp; ") - review " &amp; If(String.IsNullOrEmpty(v_FollowUp), "today", v_FollowUp) &amp; " with " &amp; v_AttName &amp; "; discharge summary shared with referring physician"]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot (scheduled)"]</InArgument>
+                          </ui:InvokeWorkflowFile.Arguments>
+                        </ui:InvokeWorkflowFile>
+                        <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: EPISODE_CLOSED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                          <ui:InvokeWorkflowFile.Arguments>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_Action">["EPISODE_CLOSED"]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Emergency episode " &amp; v_CaseId &amp; " closed end to end (intake through follow-up). Automated coordination complete."]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                          </ui:InvokeWorkflowFile.Arguments>
+                        </ui:InvokeWorkflowFile>
+                        <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Lifecycle: CLOSED" UnSafe="False" WorkflowFileName="Workflows\SetCaseStatus.xaml">
+                          <ui:InvokeWorkflowFile.Arguments>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_CaseStatus">["CLOSED"]</InArgument>
+                            <InArgument x:TypeArguments="x:String" x:Key="in_PendingAction">["Episode closed - follow-up reminder issued for " &amp; If(String.IsNullOrEmpty(v_FollowUp), "today", v_FollowUp)]</InArgument>
+                          </ui:InvokeWorkflowFile.Arguments>
+                        </ui:InvokeWorkflowFile>
+                        <Assign><Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ClosedCount]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Int32">[v_ClosedCount + 1]</InArgument></Assign.Value></Assign>
+                        <ui:LogMessage DisplayName="Log: episode closed" Level="Info"
+                          Message="[&quot;[PostDischargeFollowUp] &quot; &amp; v_CaseId &amp; &quot; - follow-up reminder sent, episode closed&quot;]" />
+                      </Sequence>
+                    </If.Then>
+                    <If.Else>
+                      <ui:LogMessage DisplayName="Log: not yet due" Level="Info"
+                        Message="[&quot;[PostDischargeFollowUp] &quot; &amp; v_CaseId &amp; &quot; - follow-up scheduled &quot; &amp; v_FollowUp &amp; &quot;, not due yet&quot;]" />
+                    </If.Else>
+                  </If>
+                </If.Else>
+              </If>
+            </Sequence>
+          </TryCatch.Try>
+          <TryCatch.Catches>
+            <Catch x:TypeArguments="s:Exception">
+              <ActivityAction x:TypeArguments="s:Exception">
+                <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_P" /></ActivityAction.Argument>
+                <ui:LogMessage DisplayName="Log: episode failed" Level="Warn"
+                  Message="[&quot;[PostDischargeFollowUp] &quot; &amp; v_CaseId &amp; &quot; skipped - &quot; &amp; ex_P.Message]" />
+              </ActivityAction>
+            </Catch>
+          </TryCatch.Catches>
+        </TryCatch>
+        <Assign DisplayName="Next">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Idx]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Idx + 1]</InArgument></Assign.Value>
+        </Assign>
+      </Sequence>
+    </While>
+
+    <Assign DisplayName="out_ClosedCount">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_ClosedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_ClosedCount]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["PostDischargeFollowUp: " &amp; v_Cands.Count.ToString() &amp; " discharged episode(s), " &amp; v_ClosedCount.ToString() &amp; " followed up and closed this run"]</InArgument></Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: follow-up done" Level="Info" Message="[out_Summary]" />
+  </Sequence>
+</Activity>

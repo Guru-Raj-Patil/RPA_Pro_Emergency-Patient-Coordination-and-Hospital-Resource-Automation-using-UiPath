@@ -1,0 +1,255 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Tests_RunAcceptanceTests"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="out_AllPassed" Type="OutArgument(x:Boolean)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="RunAcceptanceTests" sap2010:WorkflowViewState.IdRef="Sequence_RAT">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:Object" Name="v_Config" />
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:String)" Name="v_Cfg" />
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_CasesRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_ResvRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_BloodRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_AuditRaw" />
+      <Variable x:TypeArguments="scg:Dictionary(x:String, scg:List(x:String))" Name="v_CMap" />
+      <Variable x:TypeArguments="scg:List(scg:List(x:String))" Name="v_RList" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C24" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C25" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C26" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C27" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C28" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C29" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C30" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_C31" />
+      <Variable x:TypeArguments="x:Int32" Name="v_TotResv" />
+      <Variable x:TypeArguments="x:Int32" Name="v_BedResv" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ONeg" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ExCount" />
+      <Variable x:TypeArguments="x:Int32" Name="v_TotalRows" />
+      <Variable x:TypeArguments="x:Int32" Name="v_MaxResvPerCase" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ClosedCount" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Rows" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Pass" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Fail" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_ReportPath" />
+    </Sequence.Variables>
+
+    <ui:LogMessage DisplayName="Log: suite start" Level="Info"
+      Message="[&quot;[AcceptanceTests] Starting acceptance test suite (Readme.md TEST 1-8) ...&quot;]" />
+
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="GetConfig" UnSafe="False" WorkflowFileName="Framework\GetConfig.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <OutArgument x:TypeArguments="x:Object" x:Key="out_Config">[v_Config]</OutArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+
+    <Assign DisplayName="Cast config">
+      <Assign.To><OutArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[v_Cfg]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:Dictionary(x:String, x:String)">[CType(v_Config, Dictionary(Of String, String))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Cfg(&quot;ProjectRoot&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Datastore folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, If(v_Cfg.ContainsKey(&quot;DbFolder&quot;), v_Cfg(&quot;DbFolder&quot;), &quot;Data\db&quot;))]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:ReadTextFile DisplayName="Read EMERGENCY_CASES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;EMERGENCY_CASES.psv&quot;)]" Content="[v_CasesRaw]" />
+    <ui:ReadTextFile DisplayName="Read RESOURCE_RESERVATIONS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;RESOURCE_RESERVATIONS.psv&quot;)]" Content="[v_ResvRaw]" />
+    <ui:ReadTextFile DisplayName="Read BLOOD_INVENTORY.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BLOOD_INVENTORY.psv&quot;)]" Content="[v_BloodRaw]" />
+    <ui:ReadTextFile DisplayName="Read AUDIT_LOG.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;AUDIT_LOG.psv&quot;)]" Content="[v_AuditRaw]" />
+
+    <Assign DisplayName="Parse cases -> map by CaseId">
+      <Assign.To><OutArgument x:TypeArguments="scg:Dictionary(x:String, scg:List(x:String))">[v_CMap]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:Dictionary(x:String, scg:List(x:String))">[v_CasesRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c).ToList()).Where(Function(a) a.Count &gt;= 11 AndAlso a(0).Trim() &lt;&gt; "").GroupBy(Function(a) a(0).Trim()).ToDictionary(Function(g) g.Key, Function(g) g.First())]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <Assign DisplayName="Parse reservations -> list">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(scg:List(x:String))">[v_RList]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:List(scg:List(x:String))">[v_ResvRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c).ToList()).Where(Function(a) a.Count &gt;= 7 AndAlso a(1).Trim() &lt;&gt; "").ToList()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <If DisplayName="Any processed cases?" Condition="[v_CMap Is Nothing OrElse v_CMap.Count = 0]">
+      <If.Then>
+        <Throw DisplayName="Throw: no cases"
+          Exception="[New Exception(&quot;[AcceptanceTests] No processed cases found in EMERGENCY_CASES.psv. Run Main.xaml first, then run this test.&quot;)]" />
+      </If.Then>
+    </If>
+
+    <Assign DisplayName="Case ER1024">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C24]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1024&quot;), v_CMap(&quot;ER1024&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1025">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C25]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1025&quot;), v_CMap(&quot;ER1025&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1026">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C26]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1026&quot;), v_CMap(&quot;ER1026&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1027">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C27]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1027&quot;), v_CMap(&quot;ER1027&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1028">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C28]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1028&quot;), v_CMap(&quot;ER1028&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1029">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C29]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1029&quot;), v_CMap(&quot;ER1029&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1030">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C30]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1030&quot;), v_CMap(&quot;ER1030&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Case ER1031">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_C31]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[If(v_CMap.ContainsKey(&quot;ER1031&quot;), v_CMap(&quot;ER1031&quot;), Enumerable.Repeat(&quot;-&quot;, 11).ToList())]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Total reservations">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_TotResv]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_RList.Count]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Bed reservations">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_BedResv]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_RList.Count(Function(r) r(2).Trim() = "Bed")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="O- units remaining">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ONeg]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[CInt(v_BloodRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim() = "O-").Select(Function(a) a(1).Trim()).DefaultIfEmpty("-1").First())]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Unhandled EXCEPTION rows">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ExCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_AuditRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Count(Function(l) l.Trim().Split("|"c).Length &gt;= 3 AndAlso l.Trim().Split("|"c)(2).Trim() = "EXCEPTION")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Total case rows">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_TotalRows]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_CasesRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Count(Function(l) l.Trim() &lt;&gt; "")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Max reservations per case">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_MaxResvPerCase]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_CMap.Keys.Select(Function(k) v_RList.Count(Function(r) r(1).Trim() = k)).DefaultIfEmpty(0).Max()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="CASE_CLOSED audit rows">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ClosedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_AuditRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Count(Function(l) l.Trim().Split("|"c).Length &gt;= 3 AndAlso l.Trim().Split("|"c)(2).Trim() = "CASE_CLOSED")]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Build check rows">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Rows]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:List(x:String)">[New List(Of String) From {
+"T1|Successful case (ER1024)|Readiness 100 and CaseStatus Approved (or later lifecycle stage) and resources reserved|Readiness " &amp; v_C24(7) &amp; " status " &amp; v_C24(2) &amp; " with " &amp; v_RList.Count(Function(r) r(1).Trim() = "ER1024") &amp; " reservation(s)|" &amp; If(v_C24(7).Trim() = "100" AndAlso (New String() {"Approved", "ADMITTED", "IN_TREATMENT", "FIT_FOR_DISCHARGE", "DISCHARGED", "CLOSED"}).Contains(v_C24(2).Trim()) AndAlso v_RList.Count(Function(r) r(1).Trim() = "ER1024") &gt;= 3, "PASS", "FAIL"),
+"T2|Missing document (ER1025)|Readiness 75, status PENDING_DOCUMENTATION, DocumentStatus Incomplete, no reservation|Readiness " &amp; v_C25(7) &amp; " status " &amp; v_C25(2) &amp; " doc " &amp; v_C25(3) &amp; " with " &amp; v_RList.Count(Function(r) r(1).Trim() = "ER1025") &amp; " reservation(s)|" &amp; If(v_C25(7).Trim() = "75" AndAlso v_C25(2).Trim().ToUpper().StartsWith("PENDING_DOC") AndAlso v_C25(3).Trim() = "Incomplete" AndAlso v_RList.Count(Function(r) r(1).Trim() = "ER1025") = 0, "PASS", "FAIL"),
+"T3|No ICU bed (ER1027)|BedStatus Unavailable, status PENDING_BED, no reservation (escalated to staff)|Bed " &amp; v_C27(4) &amp; " status " &amp; v_C27(2) &amp; " with " &amp; v_RList.Count(Function(r) r(1).Trim() = "ER1027") &amp; " reservation(s)|" &amp; If(v_C27(4).Trim() = "Unavailable" AndAlso v_C27(2).Trim().ToUpper().StartsWith("PENDING_BED") AndAlso v_RList.Count(Function(r) r(1).Trim() = "ER1027") = 0, "PASS", "FAIL"),
+"T4|No ventilator (ER1027)|VentilatorStatus Unavailable when required, no reservation|Vent " &amp; v_C27(5) &amp; " with " &amp; v_RList.Count(Function(r) r(1).Trim() = "ER1027") &amp; " reservation(s)|" &amp; If(v_C27(5).Trim() = "Unavailable" AndAlso v_RList.Count(Function(r) r(1).Trim() = "ER1027") = 0, "PASS", "FAIL"),
+"T5|Insufficient blood (ER1028)|BloodStatus Unavailable (needs 10, stock 2), Readiness 25, no reservation|Blood " &amp; v_C28(6) &amp; " readiness " &amp; v_C28(7) &amp; " with " &amp; v_RList.Count(Function(r) r(1).Trim() = "ER1028") &amp; " reservation(s)|" &amp; If(v_C28(6).Trim() = "Unavailable" AndAlso v_C28(7).Trim() = "25" AndAlso v_RList.Count(Function(r) r(1).Trim() = "ER1028") = 0, "PASS", "FAIL"),
+"T6|Multiple simultaneous cases (ER1029/30/31)|Each batch case processed independently to Readiness 100 and Approved (or later lifecycle stage)|ER1029 " &amp; v_C29(7) &amp; "/" &amp; v_C29(2) &amp; "  ER1030 " &amp; v_C30(7) &amp; "/" &amp; v_C30(2) &amp; "  ER1031 " &amp; v_C31(7) &amp; "/" &amp; v_C31(2) &amp; "|" &amp; If(v_C29(7).Trim() = "100" AndAlso v_C30(7).Trim() = "100" AndAlso v_C31(7).Trim() = "100" AndAlso (New String() {"Approved", "ADMITTED", "IN_TREATMENT", "FIT_FOR_DISCHARGE", "DISCHARGED", "CLOSED"}).Contains(v_C29(2).Trim()) AndAlso (New String() {"Approved", "ADMITTED", "IN_TREATMENT", "FIT_FOR_DISCHARGE", "DISCHARGED", "CLOSED"}).Contains(v_C30(2).Trim()) AndAlso (New String() {"Approved", "ADMITTED", "IN_TREATMENT", "FIT_FOR_DISCHARGE", "DISCHARGED", "CLOSED"}).Contains(v_C31(2).Trim()), "PASS", "FAIL"),
+"T7|Database / file failure|System exception path with retry and no reservation corruption|Documented - simulate by locking a Data/db/*.psv file during a run; HandleException routes SystemException and audit stays consistent|MANUAL",
+"T8|Duplicate case detection|Each CaseId appears once; no case holds more than 3 reservations|" &amp; v_TotalRows &amp; " case rows, " &amp; v_CMap.Count &amp; " unique CaseIds, max " &amp; v_MaxResvPerCase &amp; " reservation(s)/case|" &amp; If(v_TotalRows = v_CMap.Count AndAlso v_MaxResvPerCase &lt;= 3, "PASS", "FAIL"),
+"SYS1|Reservation integrity|12 total reservations, 5 bed reservations, O- stock 2 after O-x4 reserved|" &amp; v_TotResv &amp; " reservations, " &amp; v_BedResv &amp; " bed, O- stock " &amp; v_ONeg &amp; "|" &amp; If(v_TotResv = 12 AndAlso v_BedResv = 5 AndAlso v_ONeg = 2, "PASS", "FAIL"),
+"SYS2|Exception handling integrity|No unhandled EXCEPTION rows in the audit trail|" &amp; v_ExCount &amp; " EXCEPTION audit row(s)|" &amp; If(v_ExCount = 0, "PASS", "FAIL"),
+"SYS3|Audit completeness|Every processed case has a CASE_CLOSED audit entry|" &amp; v_ClosedCount &amp; "/" &amp; v_CMap.Count &amp; " cases closed|" &amp; If(v_ClosedCount &gt;= v_CMap.Count, "PASS", "FAIL")
+}]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Count failures">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Fail]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Rows.Count(Function(r) r.TrimEnd().EndsWith("|FAIL"))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Count passes">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Pass]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Rows.Count(Function(r) r.TrimEnd().EndsWith("|PASS"))]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Report path">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_ReportPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Db, &quot;TEST_RESULTS.psv&quot;)]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:WriteTextFile DisplayName="Write TEST_RESULTS.psv" FileName="[v_ReportPath]"
+      Text="[&quot;TestId|Scenario|Expected|Actual|Result&quot; &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_Rows)]" />
+
+    <ui:LogMessage DisplayName="Log: results block" Level="Info"
+      Message="[&quot;[AcceptanceTests] Results (generated &quot; &amp; v_Now &amp; &quot;):&quot; &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_Rows)]" />
+
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_Pass &amp; &quot;/&quot; &amp; v_Rows.Count &amp; &quot; checks passed&quot; &amp; If(v_Fail = 0, &quot; - ALL GREEN&quot;, &quot; - &quot; &amp; v_Fail &amp; &quot; FAILED&quot;) &amp; &quot; (&quot; &amp; v_Rows.Count(Function(r) r.TrimEnd().EndsWith(&quot;|MANUAL&quot;)) &amp; &quot; manual)&quot;]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_AllPassed">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_AllPassed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Fail = 0]</InArgument></Assign.Value>
+    </Assign>
+
+    <If DisplayName="Verdict" Condition="[v_Fail = 0]">
+      <If.Then>
+        <ui:LogMessage DisplayName="Log: all green" Level="Info"
+          Message="[&quot;[AcceptanceTests] === &quot; &amp; out_Summary &amp; &quot; ===&quot;]" />
+      </If.Then>
+      <If.Else>
+        <ui:LogMessage DisplayName="Log: failures" Level="Error"
+          Message="[&quot;[AcceptanceTests] === &quot; &amp; out_Summary &amp; &quot; ===&quot;]" />
+      </If.Else>
+    </If>
+
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Refresh dashboard with test panel" UnSafe="False" WorkflowFileName="Workflows\GenerateDashboard.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+        <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
+        <InArgument x:TypeArguments="x:Int32" x:Key="in_TotalCases">[v_CMap.Count]</InArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+
+    <ui:LogMessage DisplayName="Log: done" Level="Info"
+      Message="[&quot;[AcceptanceTests] TEST_RESULTS.psv written and dashboard refreshed with the test-results panel.&quot;]" />
+  </Sequence>
+</Activity>

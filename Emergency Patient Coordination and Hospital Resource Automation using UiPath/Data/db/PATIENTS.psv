@@ -1,0 +1,9 @@
+PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|RequiredVentilator|RequiredBloodGroup|RequiredBloodUnits|CreatedAt
+P1024|Rahul Kumar|54|Male|Critical|ICU|1|O-|4|2026-09-06 10:44:11
+P1025|Ananya Singh|32|Female|Urgent|ICU|0|A+|2|2026-09-06 10:44:11
+P1026|Mohan Das|67|Male|Critical|ICU|1|B+|3|2026-09-06 10:44:11
+P1027|Priya Sharma|45|Female|Critical|ICU|1|AB+|2|2026-09-06 10:44:11
+P1028|Arun Mehta|29|Male|Critical|ICU|1|O-|10|2026-09-06 10:44:11
+P1029|Kavitha Nair|38|Female|Standard|General|0|B-|2|2026-09-06 10:44:11
+P1030|Suresh Patel|61|Male|Urgent|General|0|A-|1|2026-09-06 10:44:11
+P1031|Deepa Reddy|55|Female|Critical|Cardiology|0|AB-|1|2026-09-06 10:44:11

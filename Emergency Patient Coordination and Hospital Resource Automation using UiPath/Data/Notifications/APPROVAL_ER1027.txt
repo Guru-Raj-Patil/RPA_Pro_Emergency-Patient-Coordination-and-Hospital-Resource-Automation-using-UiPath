@@ -1,0 +1,32 @@
+ACTION REQUIRED - authorised staff review
+Case: ER1027
+Created: 2026-09-06 19:05:45
+
+==============================================
+ EMERGENCY CASE STATUS REPORT
+==============================================
+ Case ID : ER1027
+ Patient : Priya Sharma
+ Department : ICU
+ Generated : 2026-09-06 19:05:45
+----------------------------------------------
+ RESOURCE STATUS
+ Bed : Unavailable
+ Ventilator : Unavailable
+ Blood : AB+ x2 - Available
+ Documents : 4/4 documents present
+----------------------------------------------
+ READINESS ASSESSMENT (administrative only)
+ Readiness : 50%
+ Status : PENDING_BED
+ Pending : Locate available bed; Locate available ventilator
+----------------------------------------------
+ SCORING BREAKDOWN
+ Documents : 25/25
+ Bed : 0/25
+ Ventilator : 0/25
+ Blood : 25/25
+==============================================
+ NOTE: administrative readiness only. All clinical
+ decisions remain with authorised medical staff.
+==============================================

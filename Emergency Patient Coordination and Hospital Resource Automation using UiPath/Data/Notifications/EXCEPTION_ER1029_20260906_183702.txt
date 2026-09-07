@@ -1,0 +1,6 @@
+EMERGENCY RPA EXCEPTION REPORT
+Case      : ER1029
+Type      : BusinessException
+Message   : BE-007: Duplicate emergency case ER1029 already exists
+Timestamp : 2026-09-06 18:37:02
+Action    : Manual review required.

@@ -1,0 +1,15 @@
+# UiPath Studio working directories
+.local/
+.settings/
+.project/
+.tmh/
+.objects/
+.templates/
+
+# Test / build output
+TestResults/
+*.nupkg
+
+# Python cache (dashboard companion server)
+__pycache__/
+*.pyc

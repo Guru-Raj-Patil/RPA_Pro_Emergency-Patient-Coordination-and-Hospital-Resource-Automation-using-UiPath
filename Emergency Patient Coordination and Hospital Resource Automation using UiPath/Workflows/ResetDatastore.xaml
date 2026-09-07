@@ -1,0 +1,141 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_ResetDatastore"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="ResetDatastore" sap2010:WorkflowViewState.IdRef="Sequence_RDS">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Seed" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName), &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: reset start" Level="Info"
+      Message="[&quot;[ResetDatastore] Restoring datastore to seed in: &quot; &amp; v_Db]" />
+
+    <If DisplayName="db folder exists?" Condition="[Not System.IO.Directory.Exists(v_Db)]">
+      <If.Then>
+        <Throw DisplayName="Throw: db folder missing"
+          Exception="[New System.IO.DirectoryNotFoundException(&quot;[ResetDatastore] Datastore folder not found: &quot; &amp; v_Db)]" />
+      </If.Then>
+    </If>
+
+    <ui:WriteTextFile DisplayName="Reset EMERGENCY_CASES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;EMERGENCY_CASES.psv&quot;)]"
+      Text="CaseId|PatientId|CaseStatus|DocumentStatus|BedStatus|VentilatorStatus|BloodStatus|ReadinessPercentage|PendingAction|CreatedAt|UpdatedAt" />
+
+    <ui:WriteTextFile DisplayName="Reset RESOURCE_RESERVATIONS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;RESOURCE_RESERVATIONS.psv&quot;)]"
+      Text="ReservationId|CaseId|ResourceType|ResourceId|Quantity|Status|ReservedAt" />
+
+    <ui:WriteTextFile DisplayName="Reset AUDIT_LOG.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;AUDIT_LOG.psv&quot;)]"
+      Text="LogId|CaseId|Action|Description|Timestamp|PerformedBy" />
+
+    <ui:WriteTextFile DisplayName="Clear TEST_RESULTS.psv (test artifact)"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;TEST_RESULTS.psv&quot;)]"
+      Text="TestId|Scenario|Expected|Actual|Result" />
+
+    <Assign DisplayName="Seed: BEDS">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"BedId|Department|BedType|Status|VentilatorId|LastUpdated", "ICU-01|ICU|Premium|Occupied|V-01|2026-09-06 10:44:11", "ICU-02|ICU|Premium|Occupied|V-02|2026-09-06 10:44:11", "ICU-03|ICU|Premium|Available|V-03|2026-09-06 10:44:11", "ICU-04|ICU|Standard|Available|V-04|2026-09-06 10:44:11", "GEN-01|General|Standard|Occupied||2026-09-06 10:44:11", "GEN-02|General|Standard|Available||2026-09-06 10:44:11", "GEN-03|General|Standard|Available||2026-09-06 10:44:11", "GEN-04|General|Standard|Available||2026-09-06 10:44:11", "CARD-01|Cardiology|Premium|Available|V-05|2026-09-06 10:44:11", "CARD-02|Cardiology|Standard|Available||2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset BEDS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]" Text="[v_Seed]" />
+
+    <Assign DisplayName="Seed: VENTILATORS">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"VentilatorId|Status|Location|LastUpdated", "V-01|Occupied|ICU Ward A|2026-09-06 10:44:11", "V-02|Occupied|ICU Ward A|2026-09-06 10:44:11", "V-03|Available|ICU Ward B|2026-09-06 10:44:11", "V-04|Available|ICU Ward B|2026-09-06 10:44:11", "V-05|Available|ICU Ward C|2026-09-06 10:44:11", "V-06|Available|ICU Ward C|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset VENTILATORS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;VENTILATORS.psv&quot;)]" Text="[v_Seed]" />
+
+    <Assign DisplayName="Seed: BLOOD_INVENTORY">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"BloodGroup|AvailableUnits|MinimumThreshold|LastUpdated", "A+|15|3|2026-09-06 10:44:11", "A-|5|2|2026-09-06 10:44:11", "B+|12|3|2026-09-06 10:44:11", "B-|4|2|2026-09-06 10:44:11", "AB+|8|2|2026-09-06 10:44:11", "AB-|2|1|2026-09-06 10:44:11", "O+|20|5|2026-09-06 10:44:11", "O-|6|2|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset BLOOD_INVENTORY.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BLOOD_INVENTORY.psv&quot;)]" Text="[v_Seed]" />
+
+    <!-- ================= episode extension: care team / theatre / admission / billing / discharge ================= -->
+
+    <ui:WriteTextFile DisplayName="Reset DOCTOR_ASSIGNMENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]"
+      Text="AssignmentId|CaseId|DoctorId|Role|Specialty|AssignedAt|Status" />
+
+    <ui:WriteTextFile DisplayName="Reset OT_SCHEDULE.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;OT_SCHEDULE.psv&quot;)]"
+      Text="SlotId|TheatreId|CaseId|SurgeonId|AnaesthetistId|ScheduledStart|ScheduledEnd|Status" />
+
+    <ui:WriteTextFile DisplayName="Reset ADMISSIONS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]"
+      Text="AdmissionId|CaseId|PatientId|BedId|AttendingDoctorId|AdmittedAt|ExpectedStayDays|Status|DischargeReadyAt" />
+
+    <ui:WriteTextFile DisplayName="Reset BILLING.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]"
+      Text="ChargeId|CaseId|Category|Description|Quantity|UnitPrice|Amount|PostedAt" />
+
+    <ui:WriteTextFile DisplayName="Reset DISCHARGES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DISCHARGES.psv&quot;)]"
+      Text="DischargeId|CaseId|PatientId|ClinicalClearanceBy|ClinicalClearanceAt|FinalBillAmount|PaymentStatus|FollowUpDate|DischargeSummaryPath|DischargedAt" />
+
+    <ui:WriteTextFile DisplayName="Reset INSURANCE_CLAIMS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;INSURANCE_CLAIMS.psv&quot;)]"
+      Text="ClaimId|CaseId|Insurer|PolicyNumber|ClaimAmount|PacketPath|Status|SubmittedAt" />
+
+    <Assign DisplayName="Seed: DEPARTMENTS">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"DepartmentId|Name|Type|FloorWard|HeadDoctorId|LastUpdated", "DEPT-ICU|ICU|Critical|Floor 3 - Critical Care Complex|DR-001|2026-09-06 10:44:11", "DEPT-GEN|General|Medical|Floor 1 - General Medicine Ward|DR-020|2026-09-06 10:44:11", "DEPT-CARD|Cardiology|Medical|Floor 2 - Cardiac Care Wing|DR-004|2026-09-06 10:44:11", "DEPT-CTVS|Cardiothoracic Surgery|Surgical|Floor 4 - OT Complex|DR-006|2026-09-06 10:44:11", "DEPT-NEURO|Neurology|Medical|Floor 5 - Neurosciences Wing|DR-008|2026-09-06 10:44:11", "DEPT-NSURG|Neurosurgery|Surgical|Floor 4 - OT Complex|DR-010|2026-09-06 10:44:11", "DEPT-ORTHO|Orthopaedics|Surgical|Floor 2 - Orthopaedic Wing|DR-012|2026-09-06 10:44:11", "DEPT-TRAUMA|Trauma &amp; Emergency Surgery|Surgical|Ground - Emergency Block|DR-014|2026-09-06 10:44:11", "DEPT-GSURG|General Surgery|Surgical|Floor 3 - Surgical Wing|DR-016|2026-09-06 10:44:11", "DEPT-NEPHRO|Nephrology|Medical|Floor 5 - Renal Unit|DR-018|2026-09-06 10:44:11", "DEPT-PULMO|Pulmonology|Medical|Floor 3 - Respiratory Unit|DR-019|2026-09-06 10:44:11", "DEPT-ANAES|Anaesthesiology|Surgical Support|Floor 4 - OT Complex|DR-022|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset DEPARTMENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DEPARTMENTS.psv&quot;)]" Text="[v_Seed]" />
+
+    <Assign DisplayName="Seed: DOCTORS">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"DoctorId|Name|DepartmentId|Designation|Specialty|IsSurgeon|OnCallStatus|ShiftStart|ShiftEnd|CurrentLoad|MaxLoad|Contact|Email|LastUpdated", "DR-001|Dr. Meera Iyer|DEPT-ICU|Senior Consultant|Critical Care Medicine|0|OnCall|08:00|20:00|2|6|Ext 3101|m.iyer@citygeneral.local|2026-09-06 10:44:11", "DR-002|Dr. Arjun Rao|DEPT-ICU|Consultant|Critical Care &amp; Pulmonology|0|OnCall|20:00|08:00|1|6|Ext 3102|a.rao@citygeneral.local|2026-09-06 10:44:11", "DR-003|Dr. Sanjay Menon|DEPT-ICU|Registrar|Intensive Care|0|OffDuty|08:00|20:00|0|8|Ext 3103|s.menon@citygeneral.local|2026-09-06 10:44:11", "DR-004|Dr. Kavya Nair|DEPT-CARD|HOD|Interventional Cardiology|0|OnCall|09:00|18:00|3|5|Ext 2201|k.nair@citygeneral.local|2026-09-06 10:44:11", "DR-005|Dr. Rohan Desai|DEPT-CARD|Consultant|Cardiac Electrophysiology|0|OnCall|18:00|09:00|1|5|Ext 2202|r.desai@citygeneral.local|2026-09-06 10:44:11", "DR-006|Dr. Vikram Shetty|DEPT-CTVS|HOD|Cardiothoracic Surgery|1|OnCall|08:00|18:00|1|3|Ext 4301|v.shetty@citygeneral.local|2026-09-06 10:44:11", "DR-007|Dr. Priya Kulkarni|DEPT-CTVS|Consultant|Cardiac Surgery|1|OffDuty|08:00|18:00|0|3|Ext 4302|p.kulkarni@citygeneral.local|2026-09-06 10:44:11", "DR-008|Dr. Anil Kapoor|DEPT-NEURO|HOD|Stroke &amp; Vascular Neurology|0|OnCall|08:00|20:00|2|5|Ext 5401|a.kapoor@citygeneral.local|2026-09-06 10:44:11", "DR-009|Dr. Deepa Reddy|DEPT-NEURO|Consultant|Epileptology|0|OffDuty|08:00|20:00|0|5|Ext 5402|d.reddy@citygeneral.local|2026-09-06 10:44:11", "DR-010|Dr. Rajesh Pillai|DEPT-NSURG|HOD|Neurosurgery|1|OnCall|08:00|18:00|1|3|Ext 4401|r.pillai@citygeneral.local|2026-09-06 10:44:11", "DR-011|Dr. Sneha Joshi|DEPT-NSURG|Consultant|Spine Surgery|1|OnCall|18:00|08:00|0|3|Ext 4402|s.joshi@citygeneral.local|2026-09-06 10:44:11", "DR-012|Dr. Manoj Verma|DEPT-ORTHO|HOD|Trauma Orthopaedics|1|OnCall|08:00|20:00|2|5|Ext 2401|m.verma@citygeneral.local|2026-09-06 10:44:11", "DR-013|Dr. Ritu Agarwal|DEPT-ORTHO|Consultant|Joint Replacement|1|OffDuty|08:00|20:00|0|5|Ext 2402|r.agarwal@citygeneral.local|2026-09-06 10:44:11", "DR-014|Dr. Suresh Kamath|DEPT-TRAUMA|HOD|Trauma &amp; Emergency Surgery|1|OnCall|08:00|20:00|3|6|Ext 1501|s.kamath@citygeneral.local|2026-09-06 10:44:11", "DR-015|Dr. Nisha Thomas|DEPT-TRAUMA|Consultant|Emergency General Surgery|1|OnCall|20:00|08:00|1|6|Ext 1502|n.thomas@citygeneral.local|2026-09-06 10:44:11", "DR-016|Dr. Gaurav Sinha|DEPT-GSURG|HOD|General &amp; Laparoscopic Surgery|1|OnCall|09:00|18:00|1|5|Ext 3401|g.sinha@citygeneral.local|2026-09-06 10:44:11", "DR-017|Dr. Farah Khan|DEPT-GSURG|Consultant|Gastrointestinal Surgery|1|OffDuty|09:00|18:00|0|5|Ext 3402|f.khan@citygeneral.local|2026-09-06 10:44:11", "DR-018|Dr. Vivek Bhatt|DEPT-NEPHRO|HOD|Nephrology &amp; Dialysis|0|OnCall|08:00|18:00|2|5|Ext 5501|v.bhatt@citygeneral.local|2026-09-06 10:44:11", "DR-019|Dr. Lakshmi Menon|DEPT-PULMO|HOD|Pulmonology &amp; Critical Care|0|OnCall|08:00|18:00|2|5|Ext 3301|l.menon@citygeneral.local|2026-09-06 10:44:11", "DR-020|Dr. Amit Chauhan|DEPT-GEN|HOD|Internal Medicine|0|OnCall|08:00|20:00|4|8|Ext 1101|a.chauhan@citygeneral.local|2026-09-06 10:44:11", "DR-021|Dr. Pooja Malhotra|DEPT-GEN|Consultant|Internal Medicine|0|OnCall|20:00|08:00|2|8|Ext 1102|p.malhotra@citygeneral.local|2026-09-06 10:44:11", "DR-022|Dr. Karan Bose|DEPT-ANAES|Senior Consultant|Anaesthesiology &amp; Perioperative Care|0|OnCall|08:00|20:00|1|6|Ext 4501|k.bose@citygeneral.local|2026-09-06 10:44:11", "DR-023|Dr. Ayesha Siddiqui|DEPT-ANAES|Consultant|Cardiac Anaesthesia|0|OnCall|20:00|08:00|0|6|Ext 4502|a.siddiqui@citygeneral.local|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset DOCTORS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DOCTORS.psv&quot;)]" Text="[v_Seed]" />
+
+    <Assign DisplayName="Seed: OPERATING_THEATRES">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"TheatreId|Name|DepartmentAffinity|Status|LastUpdated", "OT-1|Cardiac OT|DEPT-CTVS|Available|2026-09-06 10:44:11", "OT-2|Neuro OT|DEPT-NSURG|Available|2026-09-06 10:44:11", "OT-3|Orthopaedic OT|DEPT-ORTHO|Available|2026-09-06 10:44:11", "OT-4|Trauma / Emergency OT|DEPT-TRAUMA|Available|2026-09-06 10:44:11", "OT-5|General Surgery OT|DEPT-GSURG|InUse|2026-09-06 10:44:11", "OT-6|Hybrid OT (multi-specialty)|ANY|Available|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Reset OPERATING_THEATRES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;OPERATING_THEATRES.psv&quot;)]" Text="[v_Seed]" />
+
+    <ui:LogMessage DisplayName="Log: reset done" Level="Info"
+      Message="[&quot;[ResetDatastore] Datastore restored: 9 ledgers cleared, BEDS/VENTILATORS/BLOOD_INVENTORY/DEPARTMENTS/DOCTORS/OPERATING_THEATRES reseeded.&quot;]" />
+  </Sequence>
+</Activity>
