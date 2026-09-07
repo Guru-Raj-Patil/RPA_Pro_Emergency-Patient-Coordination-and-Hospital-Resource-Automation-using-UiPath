@@ -1,0 +1,13 @@
+# Binary assets — never apply line-ending conversion (this repo has core.autocrlf=true).
+# The sample intake PDFs are mostly-ASCII, so Git would otherwise treat them as text
+# and CRLF-convert them on checkout, breaking the PDF xref byte offsets.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.db    binary
+*.xlsx  binary
+*.xls   binary
+*.uipx  binary
+*.nupkg binary

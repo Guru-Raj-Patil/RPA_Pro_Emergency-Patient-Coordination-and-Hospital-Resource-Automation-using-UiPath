@@ -106,6 +106,34 @@
   footer{margin-top:36px;color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
   .disclaimer{margin-top:16px;padding:10px 14px;background:#fff8e6;border:1px solid #f0e2b8;border-radius:10px;color:#7a5c12}
 
+  /* --- real-time coordination panels --- */
+  .rt-alert{border-radius:10px;padding:11px 13px;margin:0 0 9px;font-size:12.5px;border:1px solid;line-height:1.5}
+  .rt-alert.ACTION{background:#fff4e5;border-color:#f0c98a;color:#8a5a12}
+  .rt-alert.HIGH{background:#fdeceb;border-color:#f0c3bf;color:#8a231e}
+  .rt-alert.ERROR{background:#fdeceb;border-color:#e2a29c;color:#7a1c17}
+  .rt-alert b{display:block;margin-bottom:2px}
+  .rt-alert .rt-act{margin-top:8px}
+  .rt-mini{font-size:11.5px;color:var(--muted);margin:4px 0 0}
+  .mya{display:grid;grid-template-columns:1fr 1fr;gap:2px 22px}
+  @media(max-width:720px){.mya{grid-template-columns:1fr}}
+  .mya .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-top:10px}
+  .mya .v{font-size:14px;color:var(--ink)}
+  .mya .v.big{font-size:15px;font-weight:700}
+  .mya .full{grid-column:1/-1}
+  .mya .chk span{display:block;font-size:12.5px;margin:3px 0}
+  .mya .chk .yes{color:var(--green)} .mya .chk .no{color:var(--red)} .mya .chk .wait{color:#b9770e}
+  .rt-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:700;vertical-align:middle}
+  .rt-badge.HIGH{background:#fdeceb;color:#8a231e} .rt-badge.MEDIUM{background:#fff4e5;color:#8a5a12}
+  .rt-badge.LOW{background:#eef2f6;color:#5f6b7a}
+  .rt-status{display:inline-block;padding:4px 12px;border-radius:8px;background:var(--navy);color:#fff;font-weight:700;font-size:12.5px}
+  #pending-reqs table,#doc-availability table{width:100%;border-collapse:collapse}
+  #pending-reqs td,#pending-reqs th,#doc-availability td,#doc-availability th{padding:7px 9px;font-size:12px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+  #pending-reqs th,#doc-availability th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .rt-confirm{cursor:pointer;border:none;background:#b9770e;color:#fff;border-radius:7px;padding:6px 12px;font-size:11.5px;font-weight:700}
+  .rt-confirm:hover{background:#9c6209}
+  .rt-loadbar{display:inline-block;width:78px;height:7px;border-radius:4px;background:var(--line);overflow:hidden;vertical-align:middle}
+  .rt-loadbar i{display:block;height:100%;background:var(--navy)}
+
   /* tabs */
   .tabs{display:flex;gap:6px;margin:16px 2px 4px}
   .tab-btn{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--muted);
@@ -214,6 +242,21 @@
   </div>
 
   <div id="tab-ops">
+
+  <h2 class="sec">Live coordination</h2>
+  <div class="grid charts">
+    <div class="card"><h3>High-priority alerts</h3>
+      <p class="card-note">Raised automatically the moment a requirement cannot be met. The monitor keeps working on each one &mdash; no manual searching.</p>
+      <div id="admin-alerts"><p class="rt-mini">No open alerts.</p></div>
+    </div>
+    <div class="card"><h3>Pending requirements</h3>
+      <p class="card-note">Every unmet resource is tracked here until fulfilled. <b>ACTION REQUIRED</b> means a bed is free and authorised staff must confirm the transfer.</p>
+      <div id="pending-reqs"><p class="rt-mini">Nothing pending &mdash; every admitted patient has all resources.</p></div>
+    </div>
+  </div>
+  <div class="card"><h3>Doctor availability</h3>
+    <div id="doc-availability"><p class="rt-mini">Loading&hellip;</p></div>
+  </div>
 
   <h2 class="sec">How each emergency episode is automated</h2>
   <div class="card">
@@ -333,6 +376,17 @@
 
   <div id="tab-user" hidden>
 
+    <div id="user-alert"></div>
+
+    <h2 class="sec">My admission</h2>
+    <div class="card">
+      <p class="card-note">This updates on its own as the hospital coordinates your admission &mdash; you do not need to refresh or call the desk.</p>
+      <div id="my-admission"><p class="rt-mini">Send a request below and your live admission status appears here.</p></div>
+    </div>
+
+    <h2 class="sec">Admission timeline</h2>
+    <div class="card"><div id="my-timeline"><p class="rt-mini">No activity yet.</p></div></div>
+
     <div class="userrow">
       <section>
         <h2 class="sec">Available right now</h2>
@@ -426,6 +480,7 @@
 <script id="d-billing"   type="text/plain"><!--RPA_BILLING--></script>
 <script id="d-disch"     type="text/plain"><!--RPA_DISCH--></script>
 <script id="d-claims"    type="text/plain"><!--RPA_CLAIMS--></script>
+<script id="d-pendingreq" type="text/plain"><!--RPA_PENDINGREQ--></script>
 
 <script>
 (function(){
@@ -474,6 +529,7 @@
   var BILLING  = parsePSV("d-billing");
   var DISCH    = parsePSV("d-disch");
   var CLAIMS   = parsePSV("d-claims");
+  var PENDINGREQ = parsePSV("d-pendingreq");
 
   var patById={}; PATS.forEach(function(p){ patById[p.PatientId]=p; });
 
@@ -880,7 +936,9 @@
     show(saved === "user" ? "user" : "ops");
   })();
 
-  /* ================= live indicator / auto-refresh ================= */
+  /* ================= live indicator ================= */
+  /* Auto-refresh is driven by the /api/state poller in the "real-time layer"
+     block below (change-detected, no blind full-page reloads). */
   (function(){
     var pill = document.getElementById("live-pill");
     var txt  = document.getElementById("live-text");
@@ -888,14 +946,7 @@
     if(!LIVE){ if(txt) txt.textContent = "Snapshot"; return; }
     if(pill) pill.classList.remove("off");
     if(txt) txt.textContent = "Live";
-    if(btn) btn.textContent = "Refresh now";
-    setInterval(function(){
-      var a = document.activeElement;
-      if(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return;      // don't interrupt typing
-      var u = document.getElementById("tab-user");
-      if(u && !u.hidden) return;                                         // don't interrupt intake
-      location.reload();
-    }, 15000);
+    if(btn){ btn.textContent = "Refresh now"; btn.onclick = function(){ location.reload(); }; }
   })();
 
   /* ================= my submitted requests (private to this device) ================= */
@@ -1039,6 +1090,182 @@
           low.length
             ? "At or below the safe minimum: " + low.join(", ") + ". Staff restock these first."
             : "Every blood group is above its safe minimum level.");
+  })();
+
+  /* ================= real-time layer: /api/state poller, no blind reloads ================= */
+  (function(){
+    if(!LIVE) return;
+    var lastSig = null, pollMs = 3000, timer = null;
+
+    function myRefs(){
+      try{ var m = JSON.parse(localStorage.getItem("ecc.mine")||"[]"); return Array.isArray(m)?m:[]; }
+      catch(e){ return []; }
+    }
+    function typeLabel(t){
+      return ({ICU_BED:"ICU bed", BED:"Ward bed", DOCTOR:"Consultant", BLOOD:"Blood", VENTILATOR:"Ventilator"})[t] || t;
+    }
+    function money(n){ return "₹" + Math.round(n||0).toLocaleString(); }
+    function myCases(st){
+      var by = {}; (st.cases||[]).forEach(function(c){ by[c.caseId] = c; });
+      return myRefs().map(function(r){ return by[r]; }).filter(Boolean);
+    }
+    function wireConfirm(host){
+      [].forEach.call(host.querySelectorAll("[data-confirm]"), function(b){
+        b.onclick = function(){
+          b.disabled = true; var t0 = b.textContent; b.textContent = "…";
+          fetch("/api/confirm-transfer", {method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({caseId: b.getAttribute("data-confirm")})})
+            .then(function(r){return r.json();}).then(function(){ tick(true); })
+            .catch(function(){ b.disabled = false; b.textContent = t0; });
+        };
+      });
+    }
+
+    function renderAlerts(st){
+      var host = document.getElementById("admin-alerts"); if(!host) return;
+      var a = st.alerts || [];
+      if(!a.length){ host.innerHTML = '<p class="rt-mini">No open alerts &mdash; every requirement is on track.</p>'; return; }
+      host.innerHTML = a.map(function(x){
+        var act = (x.sev === "ACTION" && x.caseId)
+          ? '<div class="rt-act"><button class="rt-confirm" data-confirm="'+esc(x.caseId)+'">Confirm transfer</button></div>' : '';
+        return '<div class="rt-alert '+esc(x.sev)+'"><b>'+esc(x.title)+'</b>'+esc(x.body)+act+'</div>';
+      }).join("");
+      wireConfirm(host);
+    }
+    function renderReqs(st){
+      var host = document.getElementById("pending-reqs"); if(!host) return;
+      var rs = st.requirements || [];
+      if(!rs.length){ host.innerHTML = '<p class="rt-mini">Nothing pending &mdash; every admitted patient has all resources.</p>'; return; }
+      host.innerHTML = '<table><thead><tr><th>Case</th><th>Requirement</th><th>Requested</th><th>Priority</th><th>State</th><th></th></tr></thead><tbody>'+
+        rs.map(function(r){
+          var conf = (r.status === "ACTION_REQUIRED")
+            ? '<button class="rt-confirm" data-confirm="'+esc(r.caseId)+'">Confirm</button>'
+            : '<span class="rt-mini">monitoring</span>';
+          return '<tr><td class="code">'+esc(r.caseId)+'</td><td>'+esc(typeLabel(r.type))+'</td>'+
+            '<td>'+esc(r.requested||"-")+'</td>'+
+            '<td><span class="rt-badge '+esc(r.priority)+'">'+esc(r.priority)+'</span></td>'+
+            '<td>'+esc(r.status.replace(/_/g," "))+'</td><td>'+conf+'</td></tr>';
+        }).join("")+'</tbody></table>';
+      wireConfirm(host);
+    }
+    function renderDocs(st){
+      var host = document.getElementById("doc-availability"); if(!host) return;
+      var ds = (st.doctors||[]).filter(function(d){ return d.onCall === "OnCall"; }).slice().sort(function(a,b){
+        return (b.free?0:1)-(a.free?0:1) || (a.load/(a.max||1))-(b.load/(b.max||1));
+      });
+      if(!ds.length){ host.innerHTML = '<p class="rt-mini">No roster loaded.</p>'; return; }
+      host.innerHTML = '<table><thead><tr><th>Consultant</th><th>Department</th><th>Load</th><th>Status</th></tr></thead><tbody>'+
+        ds.map(function(d){
+          var pct = Math.min(100, Math.round(100*d.load/(d.max||1)));
+          return '<tr><td>'+esc(d.name)+'</td><td>'+esc(d.dept.replace("DEPT-",""))+'</td>'+
+            '<td><span class="rt-loadbar"><i style="width:'+pct+'%"></i></span> '+d.load+'/'+d.max+'</td>'+
+            '<td>'+(d.free?'<span style="color:var(--green);font-weight:700">available</span>'
+                          :'<span style="color:var(--muted)">at capacity</span>')+'</td></tr>';
+        }).join("")+'</tbody></table>';
+    }
+
+    function renderUserAlert(st){
+      var host = document.getElementById("user-alert"); if(!host) return;
+      var out = [];
+      myCases(st).forEach(function(c){
+        (c.openRequirements||[]).forEach(function(r){
+          if(r.type==="ICU_BED"||r.type==="BED"){
+            out.push(r.status==="ACTION_REQUIRED"
+              ? '<div class="rt-alert ACTION"><b>A '+esc(r.requested)+' bed is now available for you</b>Hospital staff are confirming your move from the temporary bed &mdash; nothing needed from you.</div>'
+              : '<div class="rt-alert HIGH"><b>Your requested '+esc(r.requested)+' bed is currently full</b>You have a temporary bed so your care starts now. You will be moved automatically when a '+esc(r.requested)+' bed frees up.</div>');
+          } else if(r.type==="DOCTOR"){
+            out.push('<div class="rt-alert HIGH"><b>Assigning your consultant</b>An on-call '+esc(r.requested)+' consultant is being assigned.</div>');
+          } else if(r.type==="BLOOD"){
+            out.push('<div class="rt-alert HIGH"><b>Arranging blood</b>The blood bank is cross-matching the units you need.</div>');
+          }
+        });
+      });
+      host.innerHTML = out.join("");
+    }
+    function chk(state, yes, waitTxt){
+      var cls = state===true ? "yes" : state==="wait" ? "wait" : "no";
+      var mk  = state===true ? "✓ " : state==="wait" ? "⏳ " : "⚠ ";
+      return '<span class="'+cls+'">'+mk+esc(state===true?yes:waitTxt)+'</span>';
+    }
+    function renderMyAdmission(st){
+      var host = document.getElementById("my-admission"); if(!host) return;
+      var mine = myCases(st);
+      if(!mine.length){ host.innerHTML = '<p class="rt-mini">Send a request below and your live admission status appears here.</p>'; return; }
+      host.innerHTML = mine.map(function(c){
+        var open = {}; (c.openRequirements||[]).forEach(function(r){ open[r.type]=r.status; });
+        var docOk  = c.attendingDoctorName ? true : "wait";
+        var bedOk  = c.currentBed ? ((open.ICU_BED||open.BED) ? "wait" : true) : "wait";
+        var ventOk = c.ventStatus==="Not_Required" || ["Available","Reserved"].indexOf(c.ventStatus)>=0 ? true : "wait";
+        var bldOk  = ["Available","Reserved"].indexOf(c.bloodStatus)>=0 ? true : "wait";
+        return '<div class="mya">'+
+          '<div class="full"><span class="rt-status">'+esc(c.progressiveStatus)+'</span> '+
+            '<span class="rt-badge '+esc(c.priority)+'">'+esc(c.priority)+' priority</span></div>'+
+          '<div><div class="k">Patient</div><div class="v big">'+esc(c.name)+'</div></div>'+
+          '<div><div class="k">Reference</div><div class="v big code">'+esc(c.caseId)+'</div></div>'+
+          '<div><div class="k">Doctor</div><div class="v">'+esc(c.attendingDoctorName || "Assigning…")+
+            (c.attendingSpecialty ? ' <span class="rt-mini">'+esc(c.attendingSpecialty)+'</span>' : '')+'</div></div>'+
+          '<div><div class="k">Requested ward</div><div class="v">'+esc(c.requestedWard || "-")+'</div></div>'+
+          '<div><div class="k">Current bed</div><div class="v">'+esc(c.currentBedLabel || "Being allocated…")+'</div></div>'+
+          '<div><div class="k">Current bill</div><div class="v">'+money(c.bill)+' <span class="rt-mini">'+esc(c.billStatus)+'</span></div></div>'+
+          '<div class="full"><div class="k">Resources</div><div class="v chk">'+
+            chk(docOk,  "Consultant assigned", "Consultant being assigned")+
+            chk(bedOk,  "Bed allocated", (c.requestedWard||"Ward")+" bed pending — you are in a temporary bed")+
+            chk(ventOk, "Ventilator ready", "Ventilator being sourced")+
+            chk(bldOk,  "Blood ready", "Blood cross-match in progress")+
+          '</div></div>'+
+          (c.pendingAction && c.pendingAction!=="None" ? '<div class="full rt-mini">Next: '+esc(c.pendingAction)+'</div>' : '')+
+          '<div class="full rt-mini">Last updated '+esc(c.updatedAt)+'</div>'+
+        '</div>';
+      }).join('<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">');
+    }
+    var NICE = {
+      CASE_CREATED:"Registration received", DOC_CHECKED:"Documents verified",
+      BED_CHECKED:"Bed availability checked", VENT_CHECKED:"Ventilator checked",
+      BLOOD_CHECKED:"Blood inventory checked", CARE_TEAM_ASSIGNED:"Consultant assigned",
+      DOCTOR_PENDING:"Consultant assignment pending", DOCTOR_ASSIGNED:"Consultant assigned",
+      READINESS_CALC:"Readiness assessed", REQUIREMENT_OPENED:"Requirement logged",
+      TEMP_BED_ASSIGNED:"Temporary bed assigned", RESOURCES_RESERVED:"Resources reserved",
+      ADMISSION_CONFIRMED:"Admission confirmed",
+      ICU_AVAILABLE_ACTION_REQUIRED:"Requested bed became available — confirmation requested",
+      BED_TRANSFERRED:"Moved to requested ward", TEMP_BED_RELEASED:"Temporary bed released",
+      ICU_ALLOCATED:"ICU bed allocated", REQUIREMENT_FULFILLED:"Requirement fulfilled",
+      REQUIREMENT_REOPENED:"Still waiting on the resource", CHARGES_ACCRUED:"Daily charges posted",
+      CASE_CLOSED:"Coordination pass complete"
+    };
+    function renderMyTimeline(st){
+      var host = document.getElementById("my-timeline"); if(!host) return;
+      var evs = [];
+      myCases(st).forEach(function(c){ (c.timeline||[]).forEach(function(e){ evs.push(e); }); });
+      if(!evs.length){ host.innerHTML = '<p class="rt-mini">No activity yet.</p>'; return; }
+      host.innerHTML = '<div class="tl">'+evs.slice(-24).map(function(e){
+        return '<div class="ev"><div class="h">'+esc(e.ts)+'</div><div class="b">'+
+          esc(NICE[e.action] || e.action.replace(/_/g," "))+'</div></div>';
+      }).join("")+'</div>';
+    }
+
+    function apply(st){
+      var g = document.getElementById("m-gen"); if(g) g.textContent = st.generatedAt || "";
+      var mc = document.getElementById("m-cases");
+      if(mc && st.metrics) mc.textContent = st.metrics.activeAdmissions;
+      renderAlerts(st); renderReqs(st); renderDocs(st);
+      renderUserAlert(st); renderMyAdmission(st); renderMyTimeline(st);
+    }
+    function tick(force){
+      fetch("/api/state", {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(st){
+        if(!st || !st.ok) return;
+        pollMs = Math.max(2, st.pollSeconds || 3) * 1000;
+        var changed = (lastSig !== null && st.signature !== lastSig);
+        lastSig = st.signature;
+        apply(st);
+        var ops = document.getElementById("tab-ops");
+        var onOps = ops && !ops.hidden;
+        var typing = /^(INPUT|SELECT|TEXTAREA)$/.test((document.activeElement||{}).tagName || "");
+        if((changed || force) && onOps && !typing) location.reload();
+      }).catch(function(){}).then(function(){
+        clearTimeout(timer); timer = setTimeout(function(){ tick(false); }, pollMs);
+      });
+    }
+    tick(false);
   })();
 
 })();

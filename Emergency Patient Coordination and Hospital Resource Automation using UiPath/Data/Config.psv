@@ -26,3 +26,13 @@ FollowUpDemoMode|True
 RequiredDocumentsList|ID_Proof,Insurance,Consent_Form,Medical_Report
 ResetDatastoreOnStart|True
 OpenDashboardAfterRun|True
+StartConsoleAfterRun|True
+AutoRouteOnIntake|True
+MonitorIntervalSeconds|5
+DashboardPollSeconds|3
+RequireTransferConfirmation|True
+AutoAssignDoctorWhenFree|True
+WardFallbackCritical|ICU,Cardiology,General
+WardFallbackUrgent|General
+WardFallbackStandard|General
+BillingAccrualEverySeconds|0

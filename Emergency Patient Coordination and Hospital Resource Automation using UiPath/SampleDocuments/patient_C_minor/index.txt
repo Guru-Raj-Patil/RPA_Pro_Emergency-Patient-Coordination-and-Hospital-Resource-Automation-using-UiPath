@@ -1,0 +1,19 @@
+Sample intake documents for: Meera R (16, Female, Critical)
+
+Upload on the console 'Patient Intake' tab, one file per slot:
+  ID proof       -> ID_Proof.pdf
+  Insurance      -> Insurance.pdf
+  Consent form   -> Consent_Form.pdf
+  Medical report -> Medical_Report.pdf
+
+Match the form fields to this patient:
+  Name=Meera R  Age=16  Gender=Female
+  Emergency type=Critical  Department=ICU
+  Blood group=O-  Units=3  Ventilator=Required
+
+Scenario ideas:
+  * Upload all 4  -> documents Complete (25% readiness) -> can admit.
+  * Skip Medical_Report -> PENDING_DOCUMENTATION hold (like test T2).
+  * Skip Insurance -> admitted fine, but NO insurance claim packet at discharge.
+
+Note: the bot checks the file EXISTS; it does not read the contents.

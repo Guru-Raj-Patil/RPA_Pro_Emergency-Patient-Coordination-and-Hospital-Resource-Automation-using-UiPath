@@ -1,0 +1,74 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 855 >>
+stream
+BT
+54.0 782.0 Td
+/F2 15.0 Tf
+(GOVERNMENT OF INDIA  -  IDENTITY CARD) Tj
+0 -22.0 Td
+/F1 9.0 Tf
+(SPECIMEN / TEST DOCUMENT - NOT A VALID IDENTITY PROOF) Tj
+0 -13.0 Td
+/F1 1.0 Tf
+(______________________________________________________________________________) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Name ................ Ananya Singh) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Date of birth ....... 1993-11-05) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Gender ............. Female) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(ID number .......... TEST-7788-9900-1122) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Address ............ 221 Park Street, Kolkata 700016) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Issued ............. 2018-02-20) Tj
+0 -11.0 Td
+/F1 1.0 Tf
+() Tj
+0 -22.0 Td
+/F1 9.0 Tf
+(This document is fabricated for software testing of the Emergency) Tj
+0 -22.0 Td
+/F1 9.0 Tf
+(Patient Coordination console. It has no legal validity.) Tj
+ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000327 00000 n 
+0000000402 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1308
+%%EOF

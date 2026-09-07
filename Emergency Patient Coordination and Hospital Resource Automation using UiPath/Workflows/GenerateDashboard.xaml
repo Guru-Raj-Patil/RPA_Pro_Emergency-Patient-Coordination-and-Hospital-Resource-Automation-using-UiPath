@@ -41,6 +41,7 @@
       <Variable x:TypeArguments="x:String" Name="v_DashDir" />
       <Variable x:TypeArguments="x:String" Name="v_TplPath" />
       <Variable x:TypeArguments="x:String" Name="v_OutPath" />
+      <Variable x:TypeArguments="x:String" Name="v_BatPath" />
       <Variable x:TypeArguments="x:String" Name="v_Hosp" />
       <Variable x:TypeArguments="x:String" Name="v_Now" />
       <Variable x:TypeArguments="x:String" Name="v_Meta" />
@@ -64,6 +65,7 @@
       <Variable x:TypeArguments="x:String" Name="v_Billing" />
       <Variable x:TypeArguments="x:String" Name="v_Disch" />
       <Variable x:TypeArguments="x:String" Name="v_Claims" />
+      <Variable x:TypeArguments="x:String" Name="v_PendingReq" />
       <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
     </Sequence.Variables>
 
@@ -150,6 +152,8 @@
             FileName="[System.IO.Path.Combine(in_DbFolder, &quot;DISCHARGES.psv&quot;)]" Content="[v_Disch]" />
           <ui:ReadTextFile DisplayName="Read INSURANCE_CLAIMS.psv"
             FileName="[System.IO.Path.Combine(in_DbFolder, &quot;INSURANCE_CLAIMS.psv&quot;)]" Content="[v_Claims]" />
+          <ui:ReadTextFile DisplayName="Read PENDING_REQUIREMENTS.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;PENDING_REQUIREMENTS.psv&quot;)]" Content="[v_PendingReq]" />
 
           <If DisplayName="PatientInput.psv present?" Condition="[System.IO.File.Exists(System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;PatientInput.psv&quot;))]">
             <If.Then>
@@ -252,38 +256,97 @@
             <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
             <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_CLAIMS--&gt;&quot;, If(v_Claims, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
           </Assign>
+          <Assign DisplayName="Inject: pending requirements">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_PENDINGREQ--&gt;&quot;, If(v_PendingReq, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
 
           <ui:WriteTextFile DisplayName="Write index.html" FileName="[v_OutPath]" Text="[v_Html]" />
 
           <ui:LogMessage DisplayName="Log: dashboard written" Level="Info"
             Message="[&quot;[GenerateDashboard] Dashboard written: &quot; &amp; v_OutPath &amp; &quot;  (&quot; &amp; v_Html.Length &amp; &quot; chars)&quot;]" />
 
-          <If DisplayName="Auto-open dashboard?" Condition="[Not v_Cfg.ContainsKey(&quot;OpenDashboardAfterRun&quot;) OrElse v_Cfg(&quot;OpenDashboardAfterRun&quot;).Trim().ToLower() &lt;&gt; &quot;false&quot;]">
+          <Assign DisplayName="Console launcher path">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_BatPath]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_DashDir, &quot;Start Console.bat&quot;)]</InArgument></Assign.Value>
+          </Assign>
+
+          <If DisplayName="Start live console after run?" Condition="[(Not v_Cfg.ContainsKey(&quot;StartConsoleAfterRun&quot;) OrElse v_Cfg(&quot;StartConsoleAfterRun&quot;).Trim().ToLower() &lt;&gt; &quot;false&quot;) AndAlso System.IO.File.Exists(v_BatPath)]">
             <If.Then>
-              <TryCatch DisplayName="Open in browser (non-fatal)">
+              <TryCatch DisplayName="Launch console server (non-fatal)">
                 <TryCatch.Try>
                   <Sequence>
-                    <Assign DisplayName="Launch default browser">
+                    <Assign DisplayName="Start console server">
                       <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
-                      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo() With {.FileName = v_OutPath, .UseShellExecute = True})]</InArgument></Assign.Value>
+                      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo() With {.FileName = v_BatPath, .WorkingDirectory = v_DashDir, .UseShellExecute = True})]</InArgument></Assign.Value>
                     </Assign>
-                    <ui:LogMessage DisplayName="Log: dashboard opened" Level="Info"
-                      Message="[&quot;[GenerateDashboard] Dashboard opened in default browser.&quot;]" />
+                    <ui:LogMessage DisplayName="Log: console launched" Level="Info"
+                      Message="[&quot;[GenerateDashboard] Live console starting - it will open http://localhost:8000 in the default browser. Close its window (or Ctrl+C) to stop it.&quot;]" />
                   </Sequence>
                 </TryCatch.Try>
                 <TryCatch.Catches>
                   <Catch x:TypeArguments="s:Exception">
                     <ActivityAction x:TypeArguments="s:Exception">
                       <ActivityAction.Argument>
-                        <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_O" />
+                        <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_C" />
                       </ActivityAction.Argument>
-                      <ui:LogMessage DisplayName="Log: open failed" Level="Warn"
-                        Message="[&quot;[GenerateDashboard] Could not auto-open dashboard (open it manually: &quot; &amp; v_OutPath &amp; &quot;): &quot; &amp; ex_O.Message]" />
+                      <Sequence>
+                        <ui:LogMessage DisplayName="Log: console launch failed" Level="Warn"
+                          Message="[&quot;[GenerateDashboard] Could not start live console (&quot; &amp; v_BatPath &amp; &quot;): &quot; &amp; ex_C.Message &amp; &quot; - opening the static dashboard instead.&quot;]" />
+                        <TryCatch DisplayName="Fallback: open static dashboard (non-fatal)">
+                          <TryCatch.Try>
+                            <Assign DisplayName="Launch default browser (fallback)">
+                              <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+                              <Assign.Value><InArgument x:TypeArguments="x:Object">[System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo() With {.FileName = v_OutPath, .UseShellExecute = True})]</InArgument></Assign.Value>
+                            </Assign>
+                          </TryCatch.Try>
+                          <TryCatch.Catches>
+                            <Catch x:TypeArguments="s:Exception">
+                              <ActivityAction x:TypeArguments="s:Exception">
+                                <ActivityAction.Argument>
+                                  <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_OF" />
+                                </ActivityAction.Argument>
+                                <ui:LogMessage DisplayName="Log: fallback open failed" Level="Warn"
+                                  Message="[&quot;[GenerateDashboard] Could not auto-open dashboard (open it manually: &quot; &amp; v_OutPath &amp; &quot;): &quot; &amp; ex_OF.Message]" />
+                              </ActivityAction>
+                            </Catch>
+                          </TryCatch.Catches>
+                        </TryCatch>
+                      </Sequence>
                     </ActivityAction>
                   </Catch>
                 </TryCatch.Catches>
               </TryCatch>
             </If.Then>
+            <If.Else>
+              <If DisplayName="Auto-open dashboard?" Condition="[Not v_Cfg.ContainsKey(&quot;OpenDashboardAfterRun&quot;) OrElse v_Cfg(&quot;OpenDashboardAfterRun&quot;).Trim().ToLower() &lt;&gt; &quot;false&quot;]">
+                <If.Then>
+                  <TryCatch DisplayName="Open in browser (non-fatal)">
+                    <TryCatch.Try>
+                      <Sequence>
+                        <Assign DisplayName="Launch default browser">
+                          <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+                          <Assign.Value><InArgument x:TypeArguments="x:Object">[System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo() With {.FileName = v_OutPath, .UseShellExecute = True})]</InArgument></Assign.Value>
+                        </Assign>
+                        <ui:LogMessage DisplayName="Log: dashboard opened" Level="Info"
+                          Message="[&quot;[GenerateDashboard] Dashboard opened in default browser.&quot;]" />
+                      </Sequence>
+                    </TryCatch.Try>
+                    <TryCatch.Catches>
+                      <Catch x:TypeArguments="s:Exception">
+                        <ActivityAction x:TypeArguments="s:Exception">
+                          <ActivityAction.Argument>
+                            <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_O" />
+                          </ActivityAction.Argument>
+                          <ui:LogMessage DisplayName="Log: open failed" Level="Warn"
+                            Message="[&quot;[GenerateDashboard] Could not auto-open dashboard (open it manually: &quot; &amp; v_OutPath &amp; &quot;): &quot; &amp; ex_O.Message]" />
+                        </ActivityAction>
+                      </Catch>
+                    </TryCatch.Catches>
+                  </TryCatch>
+                </If.Then>
+              </If>
+            </If.Else>
           </If>
 
         </Sequence>
