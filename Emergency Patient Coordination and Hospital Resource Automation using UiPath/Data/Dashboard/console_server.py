@@ -24,6 +24,7 @@ import json
 import os
 import re
 import base64
+import zlib
 import sqlite3
 import datetime
 import webbrowser
@@ -85,6 +86,7 @@ TOKENS = {
     "<!--RPA_DISCH-->": "DISCHARGES.psv",
     "<!--RPA_CLAIMS-->": "INSURANCE_CLAIMS.psv",
     "<!--RPA_PENDINGREQ-->": "PENDING_REQUIREMENTS.psv",
+    "<!--RPA_DOCDATA-->": "PATIENT_DOCUMENT_DATA.psv",
 }
 
 BASELINE_INPUT = [
@@ -131,6 +133,9 @@ DB_SCHEMA = {
     # --- real-time coordination: persistent unmet-requirement tracking ---
     "PENDING_REQUIREMENTS": ["RequirementId", "CaseId", "PatientId", "Type", "RequestedValue",
                              "CurrentFallback", "Priority", "Status", "CreatedAt", "UpdatedAt", "ResolvedAt"],
+    # --- data read out of the uploaded documents (one row per extracted field) ---
+    "PATIENT_DOCUMENT_DATA": ["RecordId", "PatientId", "CaseId", "DocumentType",
+                              "Field", "Value", "ExtractedAt"],
 }
 
 
@@ -550,6 +555,167 @@ def write_approval_artifact(caseid, name, dept, etype, score, status, pending, b
         pass
 
 
+# ---------------------------------------------------------------- document reading
+# The bot reads the text of each uploaded document, pulls the labelled "Key: Value"
+# lines into PATIENT_DOCUMENT_DATA.psv, cross-checks a few against the intake form,
+# and fills blank form fields (e.g. blood units) from the medical report.
+# Extraction needs a text layer: works on text PDFs (raw or FlateDecode) and .txt;
+# scanned / image files are saved + presence-checked but yield no fields.
+
+_KV_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9 /&()\-]*?)\s*[:.…]{1,}\s*(.+?)\s*$")
+
+DOC_FIELDS = {
+    "Medical_Report": {
+        "referring_physician": "ReferringPhysician",
+        "presenting_complaint": "PresentingComplaint",
+        "provisional_diagnosis": "ProvisionalDiagnosis",
+        "emergency_category": "EmergencyCategory",
+        "department_requested": "DepartmentRequested",
+        "ventilator_support": "VentilatorSupport",
+        "blood_group": "BloodGroup",
+        "units_anticipated": "UnitsAnticipated",
+        "known_allergies": "KnownAllergies",
+        "investigations_advised": "InvestigationsAdvised",
+    },
+    "Insurance": {
+        "insurer": "Insurer", "policy_number": "PolicyNumber",
+        "sum_insured": "SumInsured", "valid_till": "ValidTill", "member": "Member",
+    },
+    "ID_Proof": {
+        "name": "IdName", "date_of_birth": "DateOfBirth",
+        "id_number": "IdNumber", "gender": "IdGender",
+    },
+    "Consent_Form": {
+        "consent_given_by": "ConsentGivenBy", "relationship": "Relationship",
+        "patient": "ConsentPatient",
+    },
+}
+_DOC_FIELD_LABEL = {
+    "ReferringPhysician": "Referring physician", "PresentingComplaint": "Presenting complaint",
+    "ProvisionalDiagnosis": "Provisional diagnosis", "EmergencyCategory": "Emergency category",
+    "DepartmentRequested": "Department requested", "VentilatorSupport": "Ventilator support",
+    "BloodGroup": "Blood group", "UnitsAnticipated": "Units anticipated",
+    "KnownAllergies": "Known allergies", "InvestigationsAdvised": "Investigations advised",
+    "Insurer": "Insurer", "PolicyNumber": "Policy number", "SumInsured": "Sum insured",
+    "ValidTill": "Valid till", "Member": "Member", "IdName": "Name on ID",
+    "DateOfBirth": "Date of birth", "IdNumber": "ID number", "IdGender": "Gender on ID",
+    "ConsentGivenBy": "Consent given by", "Relationship": "Relationship",
+    "ConsentPatient": "Patient (consent form)",
+}
+
+
+def _pdf_text(raw):
+    """Best-effort text layer from a PDF: pull (...) Tj / TJ operands from every
+    content stream, inflating FlateDecode streams with stdlib zlib."""
+    out = []
+    for m in re.finditer(rb"<<([^<>]*)>>\s*stream\r?\n(.*?)\r?\nendstream", raw, re.S):
+        hdr, body = m.group(1), m.group(2)
+        if b"/FlateDecode" in hdr:
+            try:
+                body = zlib.decompress(body)
+            except zlib.error:
+                continue
+        for tm in re.finditer(rb"\(((?:[^()\\]|\\.)*)\)\s*T[jJ]", body):
+            s = tm.group(1)
+            s = s.replace(b"\\(", b"(").replace(b"\\)", b")").replace(b"\\\\", b"\\")
+            s = s.replace(b"\\n", b" ").replace(b"\\r", b" ").replace(b"\\t", b" ")
+            out.append(s.decode("latin-1", "replace"))
+    return "\n".join(out)
+
+
+def _extract_text(path):
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except OSError:
+        return ""
+    if raw[:5] == b"%PDF-" or raw[:4] == b"%PDF":
+        return _pdf_text(raw)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1", "replace")
+
+
+def _norm_key(k):
+    return re.sub(r"[^a-z0-9]+", "_", k.strip().lower()).strip("_")
+
+
+def parse_doc_fields(text, doctype):
+    want = DOC_FIELDS.get(doctype, {})
+    out = {}
+    for line in text.splitlines():
+        m = _KV_RE.match(line)
+        if not m:
+            continue
+        canon = want.get(_norm_key(m.group(1)))
+        if not canon or canon in out:
+            continue
+        val = m.group(2).strip().strip("_").strip()
+        if val and set(val) != {"_"}:
+            out[canon] = val
+    return out
+
+
+def extract_documents(pid, caseid, form):
+    """Read every uploaded document for this patient, persist the fields, cross-check
+    against the form, and return (per_doc_fields, mismatches, gap_fill)."""
+    if not config_flag("ExtractDocumentData", True):
+        return {}, [], {}
+    folder = os.path.join(PATIENTS_DIR, pid)
+    hdr, rows = load_table("PATIENT_DOCUMENT_DATA.psv")
+    if not hdr:
+        hdr = DB_SCHEMA["PATIENT_DOCUMENT_DATA"]
+    rows = [r for r in rows if not (len(r) >= 3 and r[2].strip() == caseid)]   # re-extract is idempotent
+    now = now_str()
+
+    per_doc, flat = {}, {}
+    for slot in REQUIRED_DOCS:
+        path = next((os.path.join(folder, slot + e) for e in DOC_EXTS
+                     if os.path.exists(os.path.join(folder, slot + e))), None)
+        if not path:
+            continue
+        fields = parse_doc_fields(_extract_text(path), slot)
+        if not fields:
+            audit(caseid, "DOC_READ", "%s: no readable text layer (image / scanned / unsupported)" % slot)
+            continue
+        per_doc[slot] = fields
+        for k, v in fields.items():
+            flat.setdefault(k, v)
+            rows.append(["DD-%d" % net_ticks(), pid, caseid, slot, k, v, now])
+        audit(caseid, "DOC_READ", "%s: read %d field(s) [%s]" % (slot, len(fields), ", ".join(fields)))
+
+    # cross-checks vs the intake form - warnings only, never a hard stop
+    mism = []
+
+    def _cmp(label, doc_val, form_val, loose=False):
+        if not doc_val or not (form_val or "").strip():
+            return
+        a, b = doc_val.strip().lower(), str(form_val).strip().lower()
+        ok = (a in b or b in a) if loose else (a == b)
+        if not ok:
+            mism.append((label, str(form_val), doc_val))
+            rows.append(["DD-%d" % net_ticks(), pid, caseid, "_check", label,
+                         "form='%s' vs document='%s'" % (form_val, doc_val), now])
+            audit(caseid, "DOC_MISMATCH", "%s: form='%s' vs document='%s'" % (label, form_val, doc_val))
+
+    _cmp("Blood group", flat.get("BloodGroup"), form.get("bloodGroup"))
+    _cmp("Department", flat.get("DepartmentRequested"), form.get("department"), loose=True)
+    _cmp("Emergency category", flat.get("EmergencyCategory"), form.get("emergencyType"))
+    _cmp("Patient name", flat.get("IdName") or flat.get("ConsentPatient"), form.get("name"), loose=True)
+
+    save_table("PATIENT_DOCUMENT_DATA.psv", hdr, rows)
+
+    # gap-fill: the form wins where the user gave a value; the document fills blanks
+    gap = {}
+    ua = flat.get("UnitsAnticipated", "")
+    if _int(form.get("bloodUnits") or 0) <= 0 and ua.isdigit() and int(ua) > 0:
+        gap["bloodUnits"] = int(ua)
+        audit(caseid, "DOC_DATA_APPLIED",
+              "Blood units %s taken from the medical report (form left blank)." % ua)
+    return per_doc, mism, gap
+
+
 def process_case(pid, caseid, name, etype, dept, vent_req, blood_group, blood_units):
     """Run the coordination pipeline for one intake submission. Returns an outcome dict."""
     reqd = (dept or "General").strip()
@@ -584,6 +750,14 @@ def process_case(pid, caseid, name, etype, dept, vent_req, blood_group, blood_un
     if hdr_d:
         save_table("DOCUMENTS.psv", hdr_d, drows)
     audit(caseid, "DOC_CHECKED", doc_summary)
+
+    # 2b. read the documents: extract labelled fields, cross-check vs the form,
+    #     fill blank form fields (blood units) from the medical report
+    doc_extracted, doc_mismatches, doc_gap = extract_documents(
+        pid, caseid, {"name": name, "department": reqd, "emergencyType": etype,
+                      "bloodGroup": blood_group, "bloodUnits": blood_units})
+    if "bloodUnits" in doc_gap:
+        blood_units = doc_gap["bloodUnits"]
 
     # 3. bed - requested ward first, then criticality fallback
     _, beds = load_table("BEDS.psv")
@@ -1296,7 +1470,18 @@ def build_state():
     _, docs = load_table("DOCTORS.psv")
     _, billing = load_table("BILLING.psv")
     _, audit_rows = load_table("AUDIT_LOG.psv")
+    _, dd_rows = load_table("PATIENT_DOCUMENT_DATA.psv")
     preq = open_requirements()
+
+    doc_by_case, doc_checks = {}, []
+    for r in dd_rows:
+        if len(r) < 6:
+            continue
+        cid = r[2].strip()
+        if r[3].strip() == "_check":
+            doc_checks.append((cid, r[4].strip(), r[5].strip()))
+        else:
+            doc_by_case.setdefault(cid, {})[r[4].strip()] = r[5].strip()
 
     pat = {r[0].strip(): r for r in pats if r}
     adm_by_case = {r[1].strip(): r for r in adm if len(r) >= 8}
@@ -1357,6 +1542,7 @@ def build_state():
             "progressiveStatus": progressive_status(cs, bool(a), my_reqs),
             "updatedAt": r[10].strip(),
             "timeline": tl.get(cid, [])[-50:],
+            "docData": doc_by_case.get(cid, {}),
         })
 
     beds_by_ward = {}
@@ -1394,6 +1580,10 @@ def build_state():
             alerts.append({"sev": "HIGH", "caseId": "",
                            "title": "Blood %s below threshold" % r[0].strip(),
                            "body": "%s units available, minimum %s." % (r[1].strip(), r[2].strip())})
+    for cid, label, detail in doc_checks:
+        alerts.append({"sev": "WARN", "caseId": cid,
+                       "title": "%s - document does not match the form" % cid,
+                       "body": "%s: %s. The form value is used; please verify." % (label, detail)})
 
     doctors_json = [{"id": r[0].strip(), "name": r[1].strip(), "dept": r[2].strip(),
                      "onCall": r[6].strip(), "load": _int(r[9]), "max": _int(r[10]),
@@ -1408,6 +1598,7 @@ def build_state():
         str(sum(_int(r[1]) for r in blood if r)),
         str(sum(1 for a in adm if len(a) >= 8)),
         str(len(cases_json)),
+        str(len(dd_rows)),
     ])
 
     return {

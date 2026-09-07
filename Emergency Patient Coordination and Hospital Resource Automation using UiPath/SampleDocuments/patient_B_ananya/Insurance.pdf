@@ -16,7 +16,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 984 >>
+<< /Length 989 >>
 stream
 BT
 54.0 782.0 Td
@@ -30,25 +30,28 @@ BT
 (______________________________________________________________________________) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Member ............. Ananya Singh) Tj
+(Member: Ananya Singh) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Policy number ...... POL-0-1122) Tj
+(Insurer: MediAssist Health Insurance) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Plan .............. Emergency & Inpatient Care - Individual) Tj
+(Policy Number: POL-443019) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Sum insured ....... INR 300000) Tj
+(Plan: Emergency & Inpatient Care - Individual) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Valid till ........ 2026-12-31) Tj
+(Sum Insured: INR 300000) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Network hospital .. City General Hospital \(cashless eligible\)) Tj
+(Valid Till: 2026-12-31) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Insurer helpline .. 1800-000-000 \(test\)) Tj
+(Network Hospital: City General Hospital \(cashless eligible\)) Tj
+0 -24.5 Td
+/F1 10.5 Tf
+(Helpline: 1800-000-000 \(test\)) Tj
 0 -11.0 Td
 /F1 1.0 Tf
 () Tj
@@ -73,5 +76,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-1437
+1442
 %%EOF

@@ -15,5 +15,12 @@ Scenario ideas:
   * Upload all 4  -> documents Complete (25% readiness) -> can admit.
   * Skip Medical_Report -> PENDING_DOCUMENTATION hold (like test T2).
   * Skip Insurance -> admitted fine, but NO insurance claim packet at discharge.
+  * Leave 'Blood units required' as 0 on the form -> the bot reads
+    'Units Anticipated' from the medical report and uses it.
+  * Change 'Blood Group' in Medical_Report.pdf to a different group than
+    the form -> the bot raises a document-mismatch warning (does not block).
 
-Note: the bot checks the file EXISTS; it does not read the contents.
+The console reads the 'Key: Value' lines from each PDF into
+Data/db/PATIENT_DOCUMENT_DATA.psv, cross-checks blood group / department /
+emergency category / name against the form, and fills blank form fields
+(e.g. blood units) from the medical report.

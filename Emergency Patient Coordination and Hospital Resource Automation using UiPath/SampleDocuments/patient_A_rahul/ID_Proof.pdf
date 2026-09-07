@@ -16,7 +16,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 849 >>
+<< /Length 778 >>
 stream
 BT
 54.0 782.0 Td
@@ -30,22 +30,22 @@ BT
 (______________________________________________________________________________) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Name ................ Rahul Kumar) Tj
+(Name: Rahul Kumar) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Date of birth ....... 1971-04-12) Tj
+(Date Of Birth: 1971-04-12) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Gender ............. Male) Tj
+(Gender: Male) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(ID number .......... TEST-1122-3344-5566) Tj
+(ID Number: TEST-1122-3344-5566) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Address ............ 14 MG Road, Bengaluru 560001) Tj
+(Address: 14 MG Road, Bengaluru 560001) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Issued ............. 2016-08-01) Tj
+(Issued: 2016-08-01) Tj
 0 -11.0 Td
 /F1 1.0 Tf
 () Tj
@@ -70,5 +70,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-1302
+1231
 %%EOF

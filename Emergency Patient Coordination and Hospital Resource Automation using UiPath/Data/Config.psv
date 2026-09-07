@@ -36,3 +36,4 @@ WardFallbackCritical|ICU,Cardiology,General
 WardFallbackUrgent|General
 WardFallbackStandard|General
 BillingAccrualEverySeconds|0
+ExtractDocumentData|True

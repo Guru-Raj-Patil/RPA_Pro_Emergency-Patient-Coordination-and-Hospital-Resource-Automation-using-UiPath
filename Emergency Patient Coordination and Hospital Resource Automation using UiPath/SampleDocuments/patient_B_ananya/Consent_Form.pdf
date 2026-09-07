@@ -16,7 +16,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 1117 >>
+<< /Length 1107 >>
 stream
 BT
 54.0 782.0 Td
@@ -42,19 +42,22 @@ BT
 () Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Patient ............ Ananya Singh) Tj
+(Patient: Ananya Singh) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Consent given by ... Ananya Singh \(self\)) Tj
+(Consent Given By: Ananya Singh) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Date / Time ....... 2026-09-07 23:50) Tj
+(Relationship: self) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Signature ......... ____________________________) Tj
+(Date: 2026-09-08 00:16) Tj
+0 -25.5 Td
+/F1 10.5 Tf
+(Signature: ____________________________) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Witness .......... Registration Desk) Tj
+(Witness: Registration Desk) Tj
 0 -11.0 Td
 /F1 1.0 Tf
 () Tj
@@ -79,5 +82,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-1571
+1561
 %%EOF

@@ -66,6 +66,7 @@
       <Variable x:TypeArguments="x:String" Name="v_Disch" />
       <Variable x:TypeArguments="x:String" Name="v_Claims" />
       <Variable x:TypeArguments="x:String" Name="v_PendingReq" />
+      <Variable x:TypeArguments="x:String" Name="v_DocData" />
       <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
     </Sequence.Variables>
 
@@ -154,6 +155,8 @@
             FileName="[System.IO.Path.Combine(in_DbFolder, &quot;INSURANCE_CLAIMS.psv&quot;)]" Content="[v_Claims]" />
           <ui:ReadTextFile DisplayName="Read PENDING_REQUIREMENTS.psv"
             FileName="[System.IO.Path.Combine(in_DbFolder, &quot;PENDING_REQUIREMENTS.psv&quot;)]" Content="[v_PendingReq]" />
+          <ui:ReadTextFile DisplayName="Read PATIENT_DOCUMENT_DATA.psv"
+            FileName="[System.IO.Path.Combine(in_DbFolder, &quot;PATIENT_DOCUMENT_DATA.psv&quot;)]" Content="[v_DocData]" />
 
           <If DisplayName="PatientInput.psv present?" Condition="[System.IO.File.Exists(System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;PatientInput.psv&quot;))]">
             <If.Then>
@@ -259,6 +262,10 @@
           <Assign DisplayName="Inject: pending requirements">
             <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
             <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_PENDINGREQ--&gt;&quot;, If(v_PendingReq, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Inject: document data">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Html]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_Html.Replace(&quot;&lt;!--RPA_DOCDATA--&gt;&quot;, If(v_DocData, &quot;&quot;).Replace(&quot;&lt;/&quot;, &quot;&lt; /&quot;))]</InArgument></Assign.Value>
           </Assign>
 
           <ui:WriteTextFile DisplayName="Write index.html" FileName="[v_OutPath]" Text="[v_Html]" />

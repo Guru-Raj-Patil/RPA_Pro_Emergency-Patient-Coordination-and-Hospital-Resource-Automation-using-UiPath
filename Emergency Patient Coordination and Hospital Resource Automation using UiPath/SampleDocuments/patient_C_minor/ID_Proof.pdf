@@ -16,7 +16,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 6 0 obj
-<< /Length 843 >>
+<< /Length 772 >>
 stream
 BT
 54.0 782.0 Td
@@ -30,22 +30,22 @@ BT
 (______________________________________________________________________________) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Name ................ Meera R) Tj
+(Name: Meera R) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Date of birth ....... 2009-06-22) Tj
+(Date Of Birth: 2009-06-22) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Gender ............. Female) Tj
+(Gender: Female) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(ID number .......... TEST-3344-5566-7788) Tj
+(ID Number: TEST-3344-5566-7788) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Address ............ 7 Lake View, Pune 411001) Tj
+(Address: 7 Lake View, Pune 411001) Tj
 0 -24.5 Td
 /F1 10.5 Tf
-(Issued ............. 2022-09-15) Tj
+(Issued: 2022-09-15) Tj
 0 -11.0 Td
 /F1 1.0 Tf
 () Tj
@@ -70,5 +70,5 @@ xref
 trailer
 << /Size 7 /Root 1 0 R >>
 startxref
-1296
+1225
 %%EOF

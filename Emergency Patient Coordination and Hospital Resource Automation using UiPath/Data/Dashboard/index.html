@@ -111,6 +111,11 @@
   .rt-alert.ACTION{background:#fff4e5;border-color:#f0c98a;color:#8a5a12}
   .rt-alert.HIGH{background:#fdeceb;border-color:#f0c3bf;color:#8a231e}
   .rt-alert.ERROR{background:#fdeceb;border-color:#e2a29c;color:#7a1c17}
+  .rt-alert.WARN{background:#fef7e6;border-color:#e8d59a;color:#7a5c12}
+  .mya .doc{grid-column:1/-1;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px}
+  .mya .doc .k{margin-top:0}
+  .mya .doc .dl{font-size:12.5px;margin:3px 0}
+  .mya .doc .dl b{color:var(--ink)}
   .rt-alert b{display:block;margin-bottom:2px}
   .rt-alert .rt-act{margin-top:8px}
   .rt-mini{font-size:11.5px;color:var(--muted);margin:4px 0 0}
@@ -256,6 +261,10 @@
   </div>
   <div class="card"><h3>Doctor availability</h3>
     <div id="doc-availability"><p class="rt-mini">Loading&hellip;</p></div>
+  </div>
+  <div class="card"><h3>Data read from patient documents</h3>
+    <p class="card-note">The bot reads the text of each uploaded document, stores the labelled fields, and cross-checks blood group / department / emergency category / name against the intake form. Mismatches appear as alerts above; the form value is used.</p>
+    <div id="doc-data"><p class="rt-mini">No document data extracted yet.</p></div>
   </div>
 
   <h2 class="sec">How each emergency episode is automated</h2>
@@ -462,8 +471,8 @@
 <!-- ===== DATA INJECTED BY GenerateDashboard.xaml (raw-text script blocks; not executed) ===== -->
 <script id="d-meta"    type="text/plain">key|value
 hospital|City General Hospital
-generatedAt|2026-09-07 23:26:23
-totalCases|8
+generatedAt|2026-09-08 00:17:15
+totalCases|10
 mode|snapshot</script>
 <script id="d-cases"   type="text/plain">CaseId|PatientId|CaseStatus|DocumentStatus|BedStatus|VentilatorStatus|BloodStatus|ReadinessPercentage|PendingAction|CreatedAt|UpdatedAt
 ER1024|P1024|Approved|Complete|Reserved|Reserved|Reserved|100|None|2026-09-07 22:03:58|2026-09-07 22:03:59
@@ -473,7 +482,10 @@ ER1027|P1027|PENDING_BED|Complete|Unavailable|Unavailable|Available|50|Locate av
 ER1028|P1028|PENDING_BED|Complete|Unavailable|Unavailable|Unavailable|25|Locate available bed; Locate available ventilator; Secure blood inventory|2026-09-07 22:04:00|2026-09-07 22:04:01
 ER1029|P1029|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-07 22:04:01|2026-09-07 22:04:01
 ER1030|P1030|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-07 22:04:01|2026-09-07 22:04:01
-ER1031|P1031|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-07 22:04:01|2026-09-07 22:04:02</script>
+ER1031|P1031|Approved|Complete|Reserved|Not_Required|Reserved|100|None|2026-09-07 22:04:01|2026-09-07 22:04:02
+ER1032|P1032|PENDING_BLOOD|Incomplete|Available|Available|Unavailable|50|Complete document verification; Secure blood inventory; interim Cardiology bed identified|2026-09-07 23:35:31|2026-09-07 23:35:31
+ER1033|P1033|PENDING_DOCUMENTATION|Incomplete|Available|Not_Required|Available|75|Complete document verification|2026-09-07 23:35:31|2026-09-07 23:35:31
+</script>
 <script id="d-patients" type="text/plain">PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|RequiredVentilator|RequiredBloodGroup|RequiredBloodUnits|CreatedAt
 P1024|Rahul Kumar|54|Male|Critical|ICU|1|O-|4|2026-09-06 10:44:11
 P1025|Ananya Singh|32|Female|Urgent|ICU|0|A+|2|2026-09-06 10:44:11
@@ -613,7 +625,24 @@ O-|2|2|2026-09-07 22:03:59</script>
 639244154421271775|ER1031|THEATRE_NOT_REQUIRED|No operating theatre required (Cardiology is a non-surgical department)|2026-09-07 22:04:02|Bot
 639244154421830537|ER1031|RESOURCES_RESERVED|Reserved bed CARD-01, vent N/A, blood AB-x1, attending Dr. Rohan Desai|2026-09-07 22:04:02|Bot
 639244154422251838|ER1031|ADMISSION_CONFIRMED|ADM-ER1031: Admitted to bed CARD-01 (Premium) under DR-005; expected stay 7d; billing account opened (registration 500 + bed day-1 8000 INR)|2026-09-07 22:04:02|Bot
-639244154422302050|ER1031|CASE_CLOSED|Processing complete. Score 100% approval Approved reservation True|2026-09-07 22:04:02|Bot</script>
+639244154422302050|ER1031|CASE_CLOSED|Processing complete. Score 100% approval Approved reservation True|2026-09-07 22:04:02|Bot
+639244209311272064|ER1032|CASE_CREATED|Case ER1032 for P1032 (Mary), dept ICU, emergency Critical [intake console]|2026-09-07 23:35:31|Bot
+639244209311368192|ER1032|DOC_CHECKED|1/4 documents present. Missing: Insurance, Consent_Form, Medical_Report|2026-09-07 23:35:31|Bot
+639244209311763712|ER1032|BED_CHECKED|Bed search dept=ICU ventReq=True -> Available; routed to Cardiology (interim bed CARD-02)|2026-09-07 23:35:31|Bot
+639244209311879040|ER1032|VENT_CHECKED|Ventilator: Available (V-05, portable)|2026-09-07 23:35:31|Bot
+639244209312046336|ER1032|BLOOD_CHECKED|Blood O-: available 2, needed 5 -> Unavailable|2026-09-07 23:35:31|Bot
+639244209312323968|ER1032|CARE_TEAM_ASSIGNED|Attending: Dr. Rohan Desai (Cardiac Electrophysiology) [DR-005]|2026-09-07 23:35:31|Bot
+639244209312462976|ER1032|READINESS_CALC|Readiness 50% - PENDING_BLOOD / pending: Complete document verification; Secure blood inventory|2026-09-07 23:35:31|Bot
+639244209312693888|ER1032|CASE_CLOSED|Intake processing complete. Score 50% PENDING_BLOOD admitted=False|2026-09-07 23:35:31|Bot
+639244209313004928|ER1033|CASE_CREATED|Case ER1033 for P1033 (Suzy), dept General, emergency Critical [intake console]|2026-09-07 23:35:31|Bot
+639244209313399168|ER1033|DOC_CHECKED|0/4 documents present. Missing: ID_Proof, Insurance, Consent_Form, Medical_Report|2026-09-07 23:35:31|Bot
+639244209313634432|ER1033|BED_CHECKED|Bed search dept=General ventReq=False -> Available; routed to General (requested bed GEN-04)|2026-09-07 23:35:31|Bot
+639244209313760512|ER1033|VENT_CHECKED|Ventilator: Not_Required|2026-09-07 23:35:31|Bot
+639244209313980928|ER1033|BLOOD_CHECKED|Blood A-: available 4, needed 2 -> Available|2026-09-07 23:35:31|Bot
+639244209314519552|ER1033|CARE_TEAM_ASSIGNED|Attending: Dr. Amit Chauhan (Internal Medicine) [DR-020]|2026-09-07 23:35:31|Bot
+639244209314653568|ER1033|READINESS_CALC|Readiness 75% - PENDING_DOCUMENTATION / pending: Complete document verification|2026-09-07 23:35:31|Bot
+639244209315115776|ER1033|CASE_CLOSED|Intake processing complete. Score 75% PENDING_DOCUMENTATION admitted=False|2026-09-07 23:35:31|Bot
+</script>
 <script id="d-docs"    type="text/plain">DocumentId|PatientId|DocumentType|FilePath|VerificationStatus|VerifiedAt
 1|P1024|ID_Proof|Patients/P1024/ID_Proof.pdf|Present|2026-09-07 22:03:58
 2|P1024|Insurance|Patients/P1024/Insurance.pdf|Present|2026-09-07 22:03:58
@@ -647,7 +676,7 @@ O-|2|2|2026-09-07 22:03:59</script>
 30|P1031|Insurance|Patients/P1031/Insurance.pdf|Present|2026-09-07 22:04:01
 31|P1031|Consent_Form|Patients/P1031/Consent_Form.pdf|Present|2026-09-07 22:04:01
 32|P1031|Medical_Report|Patients/P1031/Medical_Report.pdf|Present|2026-09-07 22:04:01
-33|P1032|ID_Proof|Patients/P1032/ID_Proof.pdf|Present|2026-09-07 22:08:03
+33|P1032|ID_Proof|Patients/P1032/ID_Proof.pdf|Present|2026-09-07 23:35:31
 34|P1032|Insurance||Missing|
 35|P1032|Consent_Form||Missing|
 36|P1032|Medical_Report||Missing|
@@ -665,10 +694,22 @@ P1028|Arun Mehta|29|Male|Critical|ICU|Yes|O-|10|Pending||T5: Insufficient blood 
 P1029|Kavitha Nair|38|Female|Standard|General|No|B-|2|Pending||T6: Batch scenario
 P1030|Suresh Patel|61|Male|Urgent|General|No|A-|1|Pending||T6: Batch scenario
 P1031|Deepa Reddy|55|Female|Critical|Cardiology|No|AB-|1|Pending||T6: Batch scenario
-P1032|Mary|16|Female|Critical|ICU|Yes|O-|5|Pending||Submitted from intake console
-P1033|Suzy|20|Female|Critical|General|No|A-|2|Pending||Submitted from intake console
+P1032|Mary|16|Female|Critical|ICU|Yes|O-|5|PENDING_BLOOD|ER1032|Submitted from intake console
+P1033|Suzy|20|Female|Critical|General|No|A-|2|PENDING_DOCUMENTATION|ER1033|Submitted from intake console
 </script>
-<script id="d-tests"   type="text/plain">TestId|Scenario|Expected|Actual|Result</script>
+<script id="d-tests"   type="text/plain">TestId|Scenario|Expected|Actual|Result
+T1|Successful case (ER1024)|Readiness 100 and CaseStatus Approved and resources reserved|Readiness 100 status Approved with 3 reservation(s)|PASS
+T2|Missing document (ER1025)|Readiness 75, status PENDING_DOCUMENTATION, DocumentStatus Incomplete, no reservation|Readiness 75 status PENDING_DOCUMENTATION doc Incomplete with 0 reservation(s)|PASS
+T3|No ICU bed (ER1027)|BedStatus Unavailable, status PENDING_BED, no reservation (escalated to staff)|Bed Unavailable status PENDING_BED with 0 reservation(s)|PASS
+T4|No ventilator (ER1027)|VentilatorStatus Unavailable when required, no reservation|Vent Unavailable with 0 reservation(s)|PASS
+T5|Insufficient blood (ER1028)|BloodStatus Unavailable (needs 10, stock 2), Readiness 25, no reservation|Blood Unavailable readiness 25 with 0 reservation(s)|PASS
+T6|Multiple simultaneous cases (ER1029/30/31)|Each batch case processed independently to Readiness 100 and Approved|ER1029 100/Approved  ER1030 100/Approved  ER1031 100/Approved|PASS
+T7|Database / file failure|System exception path with retry and no reservation corruption|Documented - simulate by locking a Data/db/*.psv file during a run; HandleException routes SystemException and audit stays consistent|MANUAL
+T8|Duplicate case detection|Each CaseId appears once; no case holds more than 3 reservations|8 case rows, 8 unique CaseIds, max 3 reservation(s)/case|PASS
+SYS1|Reservation integrity|12 total reservations, 5 bed reservations, O- stock 2 after O-x4 reserved|12 reservations, 5 bed, O- stock 2|PASS
+SYS2|Exception handling integrity|No unhandled EXCEPTION rows in the audit trail|0 EXCEPTION audit row(s)|PASS
+SYS3|Audit completeness|Every processed case has a CASE_CLOSED audit entry|8/8 cases closed|PASS
+</script>
 <script id="d-depts"     type="text/plain">DepartmentId|Name|Type|FloorWard|HeadDoctorId|LastUpdated
 DEPT-ICU|ICU|Critical|Floor 3 - Critical Care Complex|DR-001|2026-09-06 10:44:11
 DEPT-GEN|General|Medical|Floor 1 - General Medicine Ward|DR-020|2026-09-06 10:44:11
@@ -681,13 +722,14 @@ DEPT-TRAUMA|Trauma & Emergency Surgery|Surgical|Ground - Emergency Block|DR-014|
 DEPT-GSURG|General Surgery|Surgical|Floor 3 - Surgical Wing|DR-016|2026-09-06 10:44:11
 DEPT-NEPHRO|Nephrology|Medical|Floor 5 - Renal Unit|DR-018|2026-09-06 10:44:11
 DEPT-PULMO|Pulmonology|Medical|Floor 3 - Respiratory Unit|DR-019|2026-09-06 10:44:11
-DEPT-ANAES|Anaesthesiology|Surgical Support|Floor 4 - OT Complex|DR-022|2026-09-06 10:44:11</script>
+DEPT-ANAES|Anaesthesiology|Surgical Support|Floor 4 - OT Complex|DR-022|2026-09-06 10:44:11
+</script>
 <script id="d-doctors"   type="text/plain">DoctorId|Name|DepartmentId|Designation|Specialty|IsSurgeon|OnCallStatus|ShiftStart|ShiftEnd|CurrentLoad|MaxLoad|Contact|Email|LastUpdated
 DR-001|Dr. Meera Iyer|DEPT-ICU|Senior Consultant|Critical Care Medicine|0|OnCall|08:00|20:00|4|6|Ext 3101|m.iyer@citygeneral.local|2026-09-06 10:44:11
 DR-002|Dr. Arjun Rao|DEPT-ICU|Consultant|Critical Care & Pulmonology|0|OnCall|20:00|08:00|4|6|Ext 3102|a.rao@citygeneral.local|2026-09-06 10:44:11
 DR-003|Dr. Sanjay Menon|DEPT-ICU|Registrar|Intensive Care|0|OffDuty|08:00|20:00|0|8|Ext 3103|s.menon@citygeneral.local|2026-09-06 10:44:11
 DR-004|Dr. Kavya Nair|DEPT-CARD|HOD|Interventional Cardiology|0|OnCall|09:00|18:00|3|5|Ext 2201|k.nair@citygeneral.local|2026-09-06 10:44:11
-DR-005|Dr. Rohan Desai|DEPT-CARD|Consultant|Cardiac Electrophysiology|0|OnCall|18:00|09:00|2|5|Ext 2202|r.desai@citygeneral.local|2026-09-06 10:44:11
+DR-005|Dr. Rohan Desai|DEPT-CARD|Consultant|Cardiac Electrophysiology|0|OnCall|18:00|09:00|3|5|Ext 2202|r.desai@citygeneral.local|2026-09-07 23:35:31
 DR-006|Dr. Vikram Shetty|DEPT-CTVS|HOD|Cardiothoracic Surgery|1|OnCall|08:00|18:00|1|3|Ext 4301|v.shetty@citygeneral.local|2026-09-06 10:44:11
 DR-007|Dr. Priya Kulkarni|DEPT-CTVS|Consultant|Cardiac Surgery|1|OffDuty|08:00|18:00|0|3|Ext 4302|p.kulkarni@citygeneral.local|2026-09-06 10:44:11
 DR-008|Dr. Anil Kapoor|DEPT-NEURO|HOD|Stroke & Vascular Neurology|0|OnCall|08:00|20:00|2|5|Ext 5401|a.kapoor@citygeneral.local|2026-09-06 10:44:11
@@ -702,17 +744,19 @@ DR-016|Dr. Gaurav Sinha|DEPT-GSURG|HOD|General & Laparoscopic Surgery|1|OnCall|0
 DR-017|Dr. Farah Khan|DEPT-GSURG|Consultant|Gastrointestinal Surgery|1|OffDuty|09:00|18:00|0|5|Ext 3402|f.khan@citygeneral.local|2026-09-06 10:44:11
 DR-018|Dr. Vivek Bhatt|DEPT-NEPHRO|HOD|Nephrology & Dialysis|0|OnCall|08:00|18:00|2|5|Ext 5501|v.bhatt@citygeneral.local|2026-09-06 10:44:11
 DR-019|Dr. Lakshmi Menon|DEPT-PULMO|HOD|Pulmonology & Critical Care|0|OnCall|08:00|18:00|2|5|Ext 3301|l.menon@citygeneral.local|2026-09-06 10:44:11
-DR-020|Dr. Amit Chauhan|DEPT-GEN|HOD|Internal Medicine|0|OnCall|08:00|20:00|4|8|Ext 1101|a.chauhan@citygeneral.local|2026-09-06 10:44:11
+DR-020|Dr. Amit Chauhan|DEPT-GEN|HOD|Internal Medicine|0|OnCall|08:00|20:00|5|8|Ext 1101|a.chauhan@citygeneral.local|2026-09-07 23:35:31
 DR-021|Dr. Pooja Malhotra|DEPT-GEN|Consultant|Internal Medicine|0|OnCall|20:00|08:00|4|8|Ext 1102|p.malhotra@citygeneral.local|2026-09-06 10:44:11
 DR-022|Dr. Karan Bose|DEPT-ANAES|Senior Consultant|Anaesthesiology & Perioperative Care|0|OnCall|08:00|20:00|1|6|Ext 4501|k.bose@citygeneral.local|2026-09-06 10:44:11
-DR-023|Dr. Ayesha Siddiqui|DEPT-ANAES|Consultant|Cardiac Anaesthesia|0|OnCall|20:00|08:00|0|6|Ext 4502|a.siddiqui@citygeneral.local|2026-09-06 10:44:11</script>
+DR-023|Dr. Ayesha Siddiqui|DEPT-ANAES|Consultant|Cardiac Anaesthesia|0|OnCall|20:00|08:00|0|6|Ext 4502|a.siddiqui@citygeneral.local|2026-09-06 10:44:11
+</script>
 <script id="d-theatres"  type="text/plain">TheatreId|Name|DepartmentAffinity|Status|LastUpdated
 OT-1|Cardiac OT|DEPT-CTVS|Available|2026-09-06 10:44:11
 OT-2|Neuro OT|DEPT-NSURG|Available|2026-09-06 10:44:11
 OT-3|Orthopaedic OT|DEPT-ORTHO|Available|2026-09-06 10:44:11
 OT-4|Trauma / Emergency OT|DEPT-TRAUMA|Available|2026-09-06 10:44:11
 OT-5|General Surgery OT|DEPT-GSURG|InUse|2026-09-06 10:44:11
-OT-6|Hybrid OT (multi-specialty)|ANY|Available|2026-09-06 10:44:11</script>
+OT-6|Hybrid OT (multi-specialty)|ANY|Available|2026-09-06 10:44:11
+</script>
 <script id="d-docassign" type="text/plain">AssignmentId|CaseId|DoctorId|Role|Specialty|AssignedAt|Status
 DA-ER1024-ATT|ER1024|DR-002|Attending|Critical Care & Pulmonology|2026-09-07 22:03:59|Assigned
 DA-ER1025-ATT|ER1025|DR-001|Attending|Critical Care Medicine|2026-09-07 22:03:59|Assigned
@@ -721,7 +765,10 @@ DA-ER1027-ATT|ER1027|DR-001|Attending|Critical Care Medicine|2026-09-07 22:04:00
 DA-ER1028-ATT|ER1028|DR-002|Attending|Critical Care & Pulmonology|2026-09-07 22:04:01|Assigned
 DA-ER1029-ATT|ER1029|DR-021|Attending|Internal Medicine|2026-09-07 22:04:01|Assigned
 DA-ER1030-ATT|ER1030|DR-021|Attending|Internal Medicine|2026-09-07 22:04:01|Assigned
-DA-ER1031-ATT|ER1031|DR-005|Attending|Cardiac Electrophysiology|2026-09-07 22:04:02|Assigned</script>
+DA-ER1031-ATT|ER1031|DR-005|Attending|Cardiac Electrophysiology|2026-09-07 22:04:02|Assigned
+DA-ER1032-ATT|ER1032|DR-005|Attending|Cardiac Electrophysiology|2026-09-07 23:35:31|Assigned
+DA-ER1033-ATT|ER1033|DR-020|Attending|Internal Medicine|2026-09-07 23:35:31|Assigned
+</script>
 <script id="d-otsched"   type="text/plain">SlotId|TheatreId|CaseId|SurgeonId|AnaesthetistId|ScheduledStart|ScheduledEnd|Status</script>
 <script id="d-adm"       type="text/plain">AdmissionId|CaseId|PatientId|BedId|AttendingDoctorId|AdmittedAt|ExpectedStayDays|Status|DischargeReadyAt
 ADM-ER1024|ER1024|P1024|ICU-03|DR-002|2026-09-07 22:03:59|7|Admitted|
@@ -740,9 +787,13 @@ BIL-ER1030-REG|ER1030|Registration|Emergency admission registration|1|500|500|20
 BIL-ER1030-BED1|ER1030|BedDay|Bed GEN-03 (Standard) - day 1|1|4000|4000|2026-09-07 22:04:01
 BIL-ER1031-REG|ER1031|Registration|Emergency admission registration|1|500|500|2026-09-07 22:04:02
 BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-07 22:04:02</script>
-<script id="d-disch"     type="text/plain">DischargeId|CaseId|PatientId|ClinicalClearanceBy|ClinicalClearanceAt|FinalBillAmount|PaymentStatus|FollowUpDate|DischargeSummaryPath|DischargedAt</script>
-<script id="d-claims"    type="text/plain">ClaimId|CaseId|Insurer|PolicyNumber|ClaimAmount|PacketPath|Status|SubmittedAt</script>
+<script id="d-disch"     type="text/plain">DischargeId|CaseId|PatientId|ClinicalClearanceBy|ClinicalClearanceAt|FinalBillAmount|PaymentStatus|FollowUpDate|DischargeSummaryPath|DischargedAt
+</script>
+<script id="d-claims"    type="text/plain">ClaimId|CaseId|Insurer|PolicyNumber|ClaimAmount|PacketPath|Status|SubmittedAt
+</script>
 <script id="d-pendingreq" type="text/plain">RequirementId|CaseId|PatientId|Type|RequestedValue|CurrentFallback|Priority|Status|CreatedAt|UpdatedAt|ResolvedAt
+</script>
+<script id="d-docdata" type="text/plain">RecordId|PatientId|CaseId|DocumentType|Field|Value|ExtractedAt
 </script>
 
 <script>
@@ -793,6 +844,7 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
   var DISCH    = parsePSV("d-disch");
   var CLAIMS   = parsePSV("d-claims");
   var PENDINGREQ = parsePSV("d-pendingreq");
+  var DOCDATA = parsePSV("d-docdata");
 
   var patById={}; PATS.forEach(function(p){ patById[p.PatientId]=p; });
 
@@ -1426,6 +1478,29 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
                           :'<span style="color:var(--muted)">at capacity</span>')+'</td></tr>';
         }).join("")+'</tbody></table>';
     }
+    var DOC_LABEL = {
+      ReferringPhysician:"Referring physician", PresentingComplaint:"Presenting complaint",
+      ProvisionalDiagnosis:"Provisional diagnosis", EmergencyCategory:"Emergency category",
+      DepartmentRequested:"Department requested", VentilatorSupport:"Ventilator support",
+      BloodGroup:"Blood group", UnitsAnticipated:"Units anticipated",
+      KnownAllergies:"Known allergies", InvestigationsAdvised:"Investigations advised",
+      Insurer:"Insurer", PolicyNumber:"Policy number", SumInsured:"Sum insured",
+      ValidTill:"Valid till", Member:"Member", IdName:"Name on ID", DateOfBirth:"Date of birth",
+      IdNumber:"ID number", IdGender:"Gender on ID", ConsentGivenBy:"Consent given by",
+      Relationship:"Relationship", ConsentPatient:"Patient (consent form)"
+    };
+    function renderDocData(st){
+      var host = document.getElementById("doc-data"); if(!host) return;
+      var rows = [];
+      (st.cases||[]).forEach(function(c){
+        var dx = c.docData || {};
+        Object.keys(dx).forEach(function(k){ rows.push([c.caseId, DOC_LABEL[k]||k, dx[k]]); });
+      });
+      if(!rows.length){ host.innerHTML = '<p class="rt-mini">No document data extracted yet. Upload documents with a text layer (the sample PDFs in SampleDocuments/ work).</p>'; return; }
+      host.innerHTML = '<table><thead><tr><th>Case</th><th>Field</th><th>Value (from the document)</th></tr></thead><tbody>'+
+        rows.map(function(r){ return '<tr><td class="code">'+esc(r[0])+'</td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td></tr>'; }).join("")+
+        '</tbody></table>';
+    }
 
     function renderUserAlert(st){
       var host = document.getElementById("user-alert"); if(!host) return;
@@ -1449,6 +1524,14 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
       var cls = state===true ? "yes" : state==="wait" ? "wait" : "no";
       var mk  = state===true ? "✓ " : state==="wait" ? "⏳ " : "⚠ ";
       return '<span class="'+cls+'">'+mk+esc(state===true?yes:waitTxt)+'</span>';
+    }
+    function mrBlock(dx){
+      var order = ["ReferringPhysician","PresentingComplaint","ProvisionalDiagnosis","KnownAllergies","InvestigationsAdvised"];
+      var lines = order.filter(function(k){ return dx[k]; }).map(function(k){
+        return '<div class="dl"><b>'+esc(DOC_LABEL[k])+':</b> '+esc(dx[k])+'</div>';
+      });
+      if(!lines.length) return "";
+      return '<div class="doc"><div class="k">From your medical report (as recorded by the referring team)</div>'+lines.join("")+'</div>';
     }
     function renderMyAdmission(st){
       var host = document.getElementById("my-admission"); if(!host) return;
@@ -1476,6 +1559,7 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
             chk(ventOk, "Ventilator ready", "Ventilator being sourced")+
             chk(bldOk,  "Blood ready", "Blood cross-match in progress")+
           '</div></div>'+
+          mrBlock(c.docData||{})+
           (c.pendingAction && c.pendingAction!=="None" ? '<div class="full rt-mini">Next: '+esc(c.pendingAction)+'</div>' : '')+
           '<div class="full rt-mini">Last updated '+esc(c.updatedAt)+'</div>'+
         '</div>';
@@ -1486,6 +1570,8 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
       BED_CHECKED:"Bed availability checked", VENT_CHECKED:"Ventilator checked",
       BLOOD_CHECKED:"Blood inventory checked", CARE_TEAM_ASSIGNED:"Consultant assigned",
       DOCTOR_PENDING:"Consultant assignment pending", DOCTOR_ASSIGNED:"Consultant assigned",
+      DOC_READ:"Documents read", DOC_MISMATCH:"Document / form mismatch flagged",
+      DOC_DATA_APPLIED:"Detail taken from the medical report",
       READINESS_CALC:"Readiness assessed", REQUIREMENT_OPENED:"Requirement logged",
       TEMP_BED_ASSIGNED:"Temporary bed assigned", RESOURCES_RESERVED:"Resources reserved",
       ADMISSION_CONFIRMED:"Admission confirmed",
@@ -1510,7 +1596,7 @@ BIL-ER1031-BED1|ER1031|BedDay|Bed CARD-01 (Premium) - day 1|1|8000|8000|2026-09-
       var g = document.getElementById("m-gen"); if(g) g.textContent = st.generatedAt || "";
       var mc = document.getElementById("m-cases");
       if(mc && st.metrics) mc.textContent = st.metrics.activeAdmissions;
-      renderAlerts(st); renderReqs(st); renderDocs(st);
+      renderAlerts(st); renderReqs(st); renderDocs(st); renderDocData(st);
       renderUserAlert(st); renderMyAdmission(st); renderMyTimeline(st);
     }
     function tick(force){

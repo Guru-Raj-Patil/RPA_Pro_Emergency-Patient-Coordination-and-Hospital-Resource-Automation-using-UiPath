@@ -111,6 +111,11 @@
   .rt-alert.ACTION{background:#fff4e5;border-color:#f0c98a;color:#8a5a12}
   .rt-alert.HIGH{background:#fdeceb;border-color:#f0c3bf;color:#8a231e}
   .rt-alert.ERROR{background:#fdeceb;border-color:#e2a29c;color:#7a1c17}
+  .rt-alert.WARN{background:#fef7e6;border-color:#e8d59a;color:#7a5c12}
+  .mya .doc{grid-column:1/-1;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px}
+  .mya .doc .k{margin-top:0}
+  .mya .doc .dl{font-size:12.5px;margin:3px 0}
+  .mya .doc .dl b{color:var(--ink)}
   .rt-alert b{display:block;margin-bottom:2px}
   .rt-alert .rt-act{margin-top:8px}
   .rt-mini{font-size:11.5px;color:var(--muted);margin:4px 0 0}
@@ -256,6 +261,10 @@
   </div>
   <div class="card"><h3>Doctor availability</h3>
     <div id="doc-availability"><p class="rt-mini">Loading&hellip;</p></div>
+  </div>
+  <div class="card"><h3>Data read from patient documents</h3>
+    <p class="card-note">The bot reads the text of each uploaded document, stores the labelled fields, and cross-checks blood group / department / emergency category / name against the intake form. Mismatches appear as alerts above; the form value is used.</p>
+    <div id="doc-data"><p class="rt-mini">No document data extracted yet.</p></div>
   </div>
 
   <h2 class="sec">How each emergency episode is automated</h2>
@@ -481,6 +490,7 @@
 <script id="d-disch"     type="text/plain"><!--RPA_DISCH--></script>
 <script id="d-claims"    type="text/plain"><!--RPA_CLAIMS--></script>
 <script id="d-pendingreq" type="text/plain"><!--RPA_PENDINGREQ--></script>
+<script id="d-docdata" type="text/plain"><!--RPA_DOCDATA--></script>
 
 <script>
 (function(){
@@ -530,6 +540,7 @@
   var DISCH    = parsePSV("d-disch");
   var CLAIMS   = parsePSV("d-claims");
   var PENDINGREQ = parsePSV("d-pendingreq");
+  var DOCDATA = parsePSV("d-docdata");
 
   var patById={}; PATS.forEach(function(p){ patById[p.PatientId]=p; });
 
@@ -1163,6 +1174,29 @@
                           :'<span style="color:var(--muted)">at capacity</span>')+'</td></tr>';
         }).join("")+'</tbody></table>';
     }
+    var DOC_LABEL = {
+      ReferringPhysician:"Referring physician", PresentingComplaint:"Presenting complaint",
+      ProvisionalDiagnosis:"Provisional diagnosis", EmergencyCategory:"Emergency category",
+      DepartmentRequested:"Department requested", VentilatorSupport:"Ventilator support",
+      BloodGroup:"Blood group", UnitsAnticipated:"Units anticipated",
+      KnownAllergies:"Known allergies", InvestigationsAdvised:"Investigations advised",
+      Insurer:"Insurer", PolicyNumber:"Policy number", SumInsured:"Sum insured",
+      ValidTill:"Valid till", Member:"Member", IdName:"Name on ID", DateOfBirth:"Date of birth",
+      IdNumber:"ID number", IdGender:"Gender on ID", ConsentGivenBy:"Consent given by",
+      Relationship:"Relationship", ConsentPatient:"Patient (consent form)"
+    };
+    function renderDocData(st){
+      var host = document.getElementById("doc-data"); if(!host) return;
+      var rows = [];
+      (st.cases||[]).forEach(function(c){
+        var dx = c.docData || {};
+        Object.keys(dx).forEach(function(k){ rows.push([c.caseId, DOC_LABEL[k]||k, dx[k]]); });
+      });
+      if(!rows.length){ host.innerHTML = '<p class="rt-mini">No document data extracted yet. Upload documents with a text layer (the sample PDFs in SampleDocuments/ work).</p>'; return; }
+      host.innerHTML = '<table><thead><tr><th>Case</th><th>Field</th><th>Value (from the document)</th></tr></thead><tbody>'+
+        rows.map(function(r){ return '<tr><td class="code">'+esc(r[0])+'</td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td></tr>'; }).join("")+
+        '</tbody></table>';
+    }
 
     function renderUserAlert(st){
       var host = document.getElementById("user-alert"); if(!host) return;
@@ -1186,6 +1220,14 @@
       var cls = state===true ? "yes" : state==="wait" ? "wait" : "no";
       var mk  = state===true ? "✓ " : state==="wait" ? "⏳ " : "⚠ ";
       return '<span class="'+cls+'">'+mk+esc(state===true?yes:waitTxt)+'</span>';
+    }
+    function mrBlock(dx){
+      var order = ["ReferringPhysician","PresentingComplaint","ProvisionalDiagnosis","KnownAllergies","InvestigationsAdvised"];
+      var lines = order.filter(function(k){ return dx[k]; }).map(function(k){
+        return '<div class="dl"><b>'+esc(DOC_LABEL[k])+':</b> '+esc(dx[k])+'</div>';
+      });
+      if(!lines.length) return "";
+      return '<div class="doc"><div class="k">From your medical report (as recorded by the referring team)</div>'+lines.join("")+'</div>';
     }
     function renderMyAdmission(st){
       var host = document.getElementById("my-admission"); if(!host) return;
@@ -1213,6 +1255,7 @@
             chk(ventOk, "Ventilator ready", "Ventilator being sourced")+
             chk(bldOk,  "Blood ready", "Blood cross-match in progress")+
           '</div></div>'+
+          mrBlock(c.docData||{})+
           (c.pendingAction && c.pendingAction!=="None" ? '<div class="full rt-mini">Next: '+esc(c.pendingAction)+'</div>' : '')+
           '<div class="full rt-mini">Last updated '+esc(c.updatedAt)+'</div>'+
         '</div>';
@@ -1223,6 +1266,8 @@
       BED_CHECKED:"Bed availability checked", VENT_CHECKED:"Ventilator checked",
       BLOOD_CHECKED:"Blood inventory checked", CARE_TEAM_ASSIGNED:"Consultant assigned",
       DOCTOR_PENDING:"Consultant assignment pending", DOCTOR_ASSIGNED:"Consultant assigned",
+      DOC_READ:"Documents read", DOC_MISMATCH:"Document / form mismatch flagged",
+      DOC_DATA_APPLIED:"Detail taken from the medical report",
       READINESS_CALC:"Readiness assessed", REQUIREMENT_OPENED:"Requirement logged",
       TEMP_BED_ASSIGNED:"Temporary bed assigned", RESOURCES_RESERVED:"Resources reserved",
       ADMISSION_CONFIRMED:"Admission confirmed",
@@ -1247,7 +1292,7 @@
       var g = document.getElementById("m-gen"); if(g) g.textContent = st.generatedAt || "";
       var mc = document.getElementById("m-cases");
       if(mc && st.metrics) mc.textContent = st.metrics.activeAdmissions;
-      renderAlerts(st); renderReqs(st); renderDocs(st);
+      renderAlerts(st); renderReqs(st); renderDocs(st); renderDocData(st);
       renderUserAlert(st); renderMyAdmission(st); renderMyTimeline(st);
     }
     function tick(force){
