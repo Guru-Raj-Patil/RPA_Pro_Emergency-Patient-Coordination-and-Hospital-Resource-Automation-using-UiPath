@@ -16,6 +16,7 @@ Exit 0 = all checks passed.
 """
 import os
 import sys
+import json
 import stat
 import time
 import shutil
@@ -583,6 +584,70 @@ def run():
         s1 = cs2.build_state()["availability"]["bedsByWard"].get("ICU", {}).get("free", 0)
         check("S21 an out-of-band bed change is reflected on the very next build_state()",
               s1 == s0 - 1, (s0, s1))
+
+        # S22 - email format validation, F7, both entry points ---------
+        print("\n[S22] email format is validated (F7)")
+        _reseed(BEDS_ICU_OPEN)
+        raised = False
+        try:
+            cs2.submit_case({"name": "S22 bad", "age": "40", "gender": "Male", "emergencyType": "Standard",
+                             "department": "General", "ventilator": False, "bloodGroup": "O+",
+                             "bloodUnits": "0", "email": "not-an-email", "docs": {}})
+        except ValueError:
+            raised = True
+        check("S22 interactive submit rejects a malformed address", raised)
+        check("S22 no case row was written for the rejected submission",
+              not any(x[1].strip() == "S22 bad" for x in _rows(cs2, "PATIENTS.psv")))
+        cs2.save_patient_contact("P9001", "ER9001", "also@bad", "")     # batch path: store blank, don't raise
+        pc = [r for r in _rows(cs2, "PATIENT_CONTACT.psv") if r[0].strip() == "P9001"]
+        check("S22 batch save_patient_contact stores a bad address as BLANK (never aborts intake)",
+              pc == [] or pc[0][2].strip() == "", pc)
+        check("S22 CONTACT_EMAIL_INVALID audited for the batch path",
+              "CONTACT_EMAIL_INVALID" in [a for a, _ in _acts(cs2, "ER9001")])
+        cs2.save_patient_contact("P9002", "ER9002", "good.addr@gmail.com", "")
+        check("S22 a valid address IS stored", any(
+            r[0].strip() == "P9002" and r[2].strip() == "good.addr@gmail.com"
+            for r in _rows(cs2, "PATIENT_CONTACT.psv")))
+
+        # S23 - /api/state admin payload shape (F5) -------------------
+        print("\n[S23] build_state carries the admin-panel payload (F5)")
+        _reseed(BEDS_ICU_FULL, blood=["BloodGroup|AvailableUnits|MinimumThreshold|LastUpdated", "O-|1|2|s", "O+|20|5|s"])
+        r = _submit(cs2, "S23 Patient", "ICU", bg="O-", units="3", email="s23@x.com", docs=docs)
+        st = cs2.build_state()
+        for k in ("resources", "dischargeQueue", "adminRelease"):
+            check("S23 state has '%s'" % k, k in st)
+        beds = st["resources"]["beds"]
+        check("S23 resources.beds carry id/ward/status and an occupied bed names its patient",
+              beds and all({"id", "ward", "status", "caseId", "patient"} <= set(b) for b in beds)
+              and any(b["status"] == "Occupied" and b["patient"] for b in beds))
+        check("S23 resources.blood carries the min threshold",
+              all("min" in b for b in st["resources"]["blood"]))
+        dq = [d for d in st["dischargeQueue"] if d["caseId"] == r["caseId"]]
+        check("S23 the admitted patient is in the discharge queue with email + hasOpenRequirements",
+              dq and dq[0]["email"] == "s23@x.com" and dq[0]["hasOpenRequirements"] is True, dq)
+        check("S23 a below-threshold blood group raises a HIGH alert",
+              any(a.get("sev") == "HIGH" and "Blood O-" in a.get("title", "") for a in st["alerts"]))
+
+        # S24 - F6: signature changes after any state mutation --------
+        print("\n[S24] the /api/state signature changes on every mutation (drives the live refresh)")
+        _reseed(BEDS_ICU_FULL)
+        ra = _submit(cs2, "S24 A", "ICU", docs=docs)
+        sig0 = cs2.build_state()["signature"]
+        cs2.save_table("BEDS.psv", *(lambda h, rs: (h, [x if x[0] != "ICU-03" else
+                      ["ICU-03", "ICU", "Premium", "Occupied", "V-03", "s"] for x in rs]))(*cs2.load_table("BEDS.psv")))
+        cs2.release_resource({"kind": "BED", "resourceId": "ICU-03", "admin": "Admin", "reason": "S24"})
+        st1 = cs2.build_state()
+        check("S24 signature changed after the release", st1["signature"] != sig0, (sig0, st1["signature"]))
+        check("S24 the served requirement is gone from state.requirements",
+              not any(q["caseId"] == ra["caseId"] and q["type"] == "ICU_BED" for q in st1["requirements"]))
+        check("S24 state is still JSON-serialisable", bool(json.dumps(st1)))
+
+        # S25 - blood STRICTLY below threshold vs exactly at it -------
+        print("\n[S25] threshold alert fires at-or-below, matching the dashboard 'running low' list")
+        _reseed(BEDS_ICU_OPEN, blood=["BloodGroup|AvailableUnits|MinimumThreshold|LastUpdated", "O-|4|2|s", "O+|20|5|s"])
+        _submit(cs2, "S25 below", "ICU", bg="O-", units="3", docs=docs)   # 4-3 = 1  < 2
+        below = any(a.get("title", "").startswith("Blood O-") for a in cs2.build_state()["alerts"])
+        check("S25 one-below-threshold raises the alert", below)
 
     finally:
         _restore()
