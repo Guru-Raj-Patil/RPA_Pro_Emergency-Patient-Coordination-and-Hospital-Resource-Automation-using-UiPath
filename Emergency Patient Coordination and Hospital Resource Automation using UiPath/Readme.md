@@ -1278,8 +1278,65 @@ DEMO SEQUENCE (Phase 3):
             resource and watch the earliest pending requirement get served automatically.
   Live alternative: Data/Dashboard/Start Console.bat - submit from the browser, use the
                     "Manual resource release" and "Discharge approvals" panels on the admin tab.
-  Tests: python Tests/finetune_checks.py (46/46) ; Run File Tests/RunFineTuneTests.xaml
+  Tests: python Tests/finetune_checks.py (46/46) ; python Tests/finetune_stress.py (96/96) ;
+         python Tests/realtime_pipeline_check.py (50/50) ; Run File Tests/RunFineTuneTests.xaml
          (writes TEST_RESULTS.psv - rewrites the datastore, ResetDatastore afterwards).
+
+--- PHASE 3 HARDENING (post multi-agent review) ---
+
+A deep review (code-review + silent-failure + test-coverage passes over the whole
+fine-tune diff) drove a hardening pass. The correctness / safety fixes:
+
+* Fail-loud reads. console_server.read_text() retries then RAISES on a real read
+  error instead of returning "" - a locked/corrupt .psv can no longer be mistaken
+  for an empty table and rebuilt from a bare header (which would wipe every other
+  patient's pending requirement / contact / document row). save_table() retries
+  the atomic os.replace (Windows WinError 5) and logs loudly on a header-only
+  write over a file that had data.
+* The administrative discharge approval NEVER substitutes for the attending
+  doctor's clinical fitness certification (HUMAN GATE 2). approve_discharge
+  requires FitForDischarge, or Admitted + AutoCertifyDischarge=True (which
+  auto-certifies on the attending's behalf and audits DISCHARGE_CERTIFIED). The
+  DISCHARGES row keeps the DOCTOR's ClinicalClearanceBy/At - the admin's name is
+  only ever in the DISCHARGE_APPROVED audit.
+* Force-vacate a bed: ReleaseResource with in_Force=True (needed for an occupied
+  bed, BE-012 otherwise) now also releases the linked ventilator / the patient's
+  blood + doctor, sets CaseStatus=FORCE_VACATED, opens a fresh bed requirement so
+  the patient re-enters FCFS, and raises a HIGH alert. No stranded "Admitted"
+  patient with no bed and no bill.
+* Held-case admission in the batch engine. FulfilPendingRequirements.xaml now
+  admits a never-admitted case into a freed ward bed (the XAML twin of the
+  console's _admit_held_into_ward); it also honours ACTION_REQUIRED rows and
+  Config PendingAllocationOrder, never cancels a requirement whose case row is
+  merely absent from one read, and re-checks bed availability before writing.
+* A malformed email in PatientInput.psv / the batch path is stored blank +
+  audited CONTACT_EMAIL_INVALID, never thrown - a contact-field typo must not
+  abort an emergency admission (the interactive console form still rejects).
+* The DISCHARGE_APPROVED_<case>.txt marker is written only after the bill is
+  produced (a bill failure retries cleanly); ResetDatastore.xaml and
+  restore_baseline() delete the stale markers so a deterministic CaseId cannot
+  re-authorise a discharge on the next run.
+* A failed discharge-bill email drops a durable EMAIL_RETRY_<case>.txt; the WARN
+  alert is derived from that file (not a scrolling tail scan) and
+  POST /api/retry-bill-email (or the admin button) re-sends and clears it.
+* Coordination / discharge failures are audited loud (COORDINATION_FAILED,
+  DISCHARGE_FAILED_MIDWAY, AUTOMATIC_ALLOCATION_FAILED, DISCHARGE_STEP_FAILED)
+  and flip the case to Error rather than a silent 500. config_flag accepts
+  false/no/0/off/disabled. GET / is served under PROCESS_LOCK.
+
+TWO-ENGINE CONTRACT: the batch pipeline (Main.xaml + the Run-File workflows) and
+the live console (console_server.py) share Data/db/*.psv but NOT a lock. Run one
+engine at a time against a given datastore: Main.xaml is the batch / seed engine,
+the console is the live / real-time engine. This is how the demo runs (Studio
+first, or the console first) - do not drive allocation from both simultaneously.
+
+TESTS: Tests/finetune_stress.py (96 checks, non-destructive) covers the real-life
+edges - no bed anywhere, blood exactly at threshold, double release / double
+approve, discharge with open requirements, waived (zero) bill, identical FCFS
+timestamps, orphaned requirement, ventilator fulfilment, held-case admission,
+concurrent contention, mixed resource queue, malformed input, audit completeness,
+RequestedValue immutability, no-stale /api/state, email-format validation, the
+admin payload shape and the live-refresh signature.
 
 FOR EACH PHASE
 
