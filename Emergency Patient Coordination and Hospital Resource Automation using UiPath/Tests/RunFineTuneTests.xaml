@@ -1,0 +1,210 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Tests_RunFineTuneTests"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="out_AllPassed" Type="OutArgument(x:Boolean)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="RunFineTuneTests" sap2010:WorkflowViewState.IdRef="Sequence_RFT">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_RelMsg" />
+      <Variable x:TypeArguments="x:Int32" Name="v_RelAlloc" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ApprCount" />
+      <Variable x:TypeArguments="x:String" Name="v_ApprSummary" />
+      <Variable x:TypeArguments="x:String" Name="v_Beds" />
+      <Variable x:TypeArguments="x:String" Name="v_Adm" />
+      <Variable x:TypeArguments="x:String" Name="v_Preq" />
+      <Variable x:TypeArguments="x:String" Name="v_Audit" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Rows" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Pass" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Fail" />
+      <Variable x:TypeArguments="x:String" Name="v_ReportPath" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;db&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="notifications folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Ensure notif dir">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_ReportPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Directory.CreateDirectory(v_Notif).FullName]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:LogMessage DisplayName="Log: seed" Level="Info"
+      Message="[&quot;[FineTuneTests] Seeding a known shortage + discharge-approval state in &quot; &amp; v_Db]" />
+
+    <!-- ================= SEED ================= -->
+    <ui:WriteTextFile DisplayName="Seed BEDS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;BedId|Department|BedType|Status|VentilatorId|LastUpdated&quot;, &quot;ICU-01|ICU|Premium|Occupied|V-01|s&quot;, &quot;ICU-02|ICU|Premium|Occupied|V-02|s&quot;, &quot;ICU-03|ICU|Premium|Occupied|V-03|s&quot;, &quot;ICU-04|ICU|Standard|Occupied|V-04|s&quot;, &quot;GEN-02|General|Standard|Occupied||s&quot;, &quot;GEN-03|General|Standard|Occupied||s&quot;, &quot;GEN-04|General|Standard|Available||s&quot;, &quot;CARD-01|Cardiology|Premium|Occupied|V-05|s&quot;, &quot;CARD-02|Cardiology|Standard|Available||s&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed VENTILATORS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;VENTILATORS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;VentilatorId|Status|Location|LastUpdated&quot;, &quot;V-01|Occupied|A|s&quot;, &quot;V-02|Occupied|A|s&quot;, &quot;V-03|Available|B|s&quot;, &quot;V-04|Available|B|s&quot;, &quot;V-05|Occupied|C|s&quot;, &quot;V-06|Available|C|s&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed BLOOD_INVENTORY.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BLOOD_INVENTORY.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;BloodGroup|AvailableUnits|MinimumThreshold|LastUpdated&quot;, &quot;A+|15|3|s&quot;, &quot;A-|5|2|s&quot;, &quot;B+|12|3|s&quot;, &quot;B-|4|2|s&quot;, &quot;AB+|8|2|s&quot;, &quot;AB-|2|1|s&quot;, &quot;O+|20|5|s&quot;, &quot;O-|6|2|s&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed EMERGENCY_CASES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;EMERGENCY_CASES.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;CaseId|PatientId|CaseStatus|DocumentStatus|BedStatus|VentilatorStatus|BloodStatus|ReadinessPercentage|PendingAction|CreatedAt|UpdatedAt&quot;, &quot;FTA|PFTA|Admitted|Complete|Reserved|Not_Required|Reserved|100|ICU transfer pending|2026-09-08 10:00:00|2026-09-08 10:00:00&quot;, &quot;FTB|PFTB|Admitted|Complete|Reserved|Not_Required|Reserved|100|ICU transfer pending|2026-09-08 10:05:00|2026-09-08 10:05:00&quot;, &quot;FTC|PFTC|FIT_FOR_DISCHARGE|Complete|Reserved|Not_Required|Reserved|100|Awaiting admin discharge approval|2026-09-08 09:00:00|2026-09-08 12:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed PATIENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENTS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|RequiredVentilator|RequiredBloodGroup|RequiredBloodUnits|CreatedAt&quot;, &quot;PFTA|FineTune A|50|Male|Critical|ICU|0|O+|0|2026-09-08 10:00:00&quot;, &quot;PFTB|FineTune B|48|Female|Critical|ICU|0|O+|0|2026-09-08 10:05:00&quot;, &quot;PFTC|FineTune C|60|Male|Urgent|General|0|A+|0|2026-09-08 09:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed ADMISSIONS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;AdmissionId|CaseId|PatientId|BedId|AttendingDoctorId|AdmittedAt|ExpectedStayDays|Status|DischargeReadyAt&quot;, &quot;ADM-FTA|FTA|PFTA|CARD-01|DR-005|2026-09-08 10:00:00|7|Admitted|&quot;, &quot;ADM-FTB|FTB|PFTB|GEN-02|DR-021|2026-09-08 10:05:00|7|Admitted|&quot;, &quot;ADM-FTC|FTC|PFTC|GEN-03|DR-020|2026-09-08 09:00:00|3|FitForDischarge|2026-09-08 12:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed PENDING_REQUIREMENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;PENDING_REQUIREMENTS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;RequirementId|CaseId|PatientId|Type|RequestedValue|CurrentFallback|Priority|Status|CreatedAt|UpdatedAt|ResolvedAt&quot;, &quot;REQ-FTA|FTA|PFTA|ICU_BED|ICU|Cardiology|HIGH|OPEN|2026-09-08 10:00:00|2026-09-08 10:00:00|&quot;, &quot;REQ-FTB|FTB|PFTB|ICU_BED|ICU|General|HIGH|OPEN|2026-09-08 10:05:00|2026-09-08 10:05:00|&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed BILLING.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;ChargeId|CaseId|Category|Description|Quantity|UnitPrice|Amount|PostedAt&quot;, &quot;BIL-FTC-REG|FTC|Registration|Emergency admission registration|1|500|500|2026-09-08 09:00:00&quot;, &quot;BIL-FTC-BED1|FTC|BedDay|Bed GEN-03 (Standard) - day 1|1|4000|4000|2026-09-08 09:00:00&quot;, &quot;BIL-FTC-BED2|FTC|BedDay|Bed GEN-03 - day 2|1|4000|4000|2026-09-08 09:00:00&quot;, &quot;BIL-FTC-DF2|FTC|DoctorFee|Attending review - day 2|1|1500|1500|2026-09-08 09:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed DISCHARGES.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DISCHARGES.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;DischargeId|CaseId|PatientId|ClinicalClearanceBy|ClinicalClearanceAt|FinalBillAmount|PaymentStatus|FollowUpDate|DischargeSummaryPath|DischargedAt&quot;, &quot;DIS-FTC|FTC|PFTC|DR-020|2026-09-08 12:00:00|0|Pending|||&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed PATIENT_CONTACT.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENT_CONTACT.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;PatientId|CaseId|EmailAddress|Phone|CapturedAt&quot;, &quot;PFTC|FTC|finetune.c@gmail.com||2026-09-08 09:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed DOCUMENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DOCUMENTS.psv&quot;)]"
+      Text="DocumentId|PatientId|DocumentType|FilePath|VerificationStatus|VerifiedAt" />
+    <ui:WriteTextFile DisplayName="Seed RESOURCE_RESERVATIONS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;RESOURCE_RESERVATIONS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;ReservationId|CaseId|ResourceType|ResourceId|Quantity|Status|ReservedAt&quot;, &quot;10001|FTA|Bed|CARD-01|1|Reserved|2026-09-08 10:00:00&quot;, &quot;10002|FTB|Bed|GEN-02|1|Reserved|2026-09-08 10:05:00&quot;, &quot;10003|FTC|Bed|GEN-03|1|Reserved|2026-09-08 09:00:00&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed AUDIT_LOG.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;AUDIT_LOG.psv&quot;)]"
+      Text="LogId|CaseId|Action|Description|Timestamp|PerformedBy" />
+    <ui:WriteTextFile DisplayName="Seed DOCTOR_ASSIGNMENTS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;DOCTOR_ASSIGNMENTS.psv&quot;)]"
+      Text="[String.Join(Environment.NewLine, New String() {&quot;AssignmentId|CaseId|DoctorId|Role|Specialty|AssignedAt|Status&quot;, &quot;DA-FTC-ATT|FTC|DR-020|Attending|Internal Medicine|2026-09-08 09:00:00|Assigned&quot;})]" />
+    <ui:WriteTextFile DisplayName="Seed OT_SCHEDULE.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;OT_SCHEDULE.psv&quot;)]"
+      Text="SlotId|TheatreId|CaseId|SurgeonId|AnaesthetistId|ScheduledStart|ScheduledEnd|Status" />
+    <ui:WriteTextFile DisplayName="Seed INSURANCE_CLAIMS.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;INSURANCE_CLAIMS.psv&quot;)]"
+      Text="ClaimId|CaseId|Insurer|PolicyNumber|ClaimAmount|PacketPath|Status|SubmittedAt" />
+    <ui:WriteTextFile DisplayName="Seed PATIENT_DOCUMENT_DATA.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENT_DOCUMENT_DATA.psv&quot;)]"
+      Text="RecordId|PatientId|CaseId|DocumentType|Field|Value|ExtractedAt" />
+    <ui:WriteTextFile DisplayName="Write admin approval file (FTC)"
+      FileName="[System.IO.Path.Combine(v_Notif, &quot;APPROVE_DISCHARGE_FTC.txt&quot;)]"
+      Text="[&quot;Admin: Test Admin&quot; &amp; Environment.NewLine &amp; &quot;Approved for fine-tune test run at &quot; &amp; v_Now]" />
+
+    <!-- ================= EXERCISE ================= -->
+    <ui:LogMessage DisplayName="Log: release ICU-03" Level="Info"
+      Message="[&quot;[FineTuneTests] Admin releases ICU-03 - expecting FCFS allocation to FTA (10:00) over FTB (10:05)&quot;]" />
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="ReleaseResource: BED ICU-03" UnSafe="False" WorkflowFileName="Workflows\ReleaseResource.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_Kind">["BED"]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_ResourceId">["ICU-03"]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_AdminName">["Test Admin"]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_Reason">["Fine-tune acceptance test"]</InArgument>
+        <InArgument x:TypeArguments="x:Int32" x:Key="in_AddUnits">[0]</InArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="out_Message">[v_RelMsg]</OutArgument>
+        <OutArgument x:TypeArguments="x:Int32" x:Key="out_AutoAllocated">[v_RelAlloc]</OutArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+
+    <ui:LogMessage DisplayName="Log: approve discharge" Level="Info"
+      Message="[&quot;[FineTuneTests] Running admin discharge approval for FTC (approval file present)&quot;]" />
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="ApproveDischarge" UnSafe="False" WorkflowFileName="Workflows\ApproveDischarge.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+        <OutArgument x:TypeArguments="x:Int32" x:Key="out_ApprovedCount">[v_ApprCount]</OutArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="out_Summary">[v_ApprSummary]</OutArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+
+    <!-- ================= EVALUATE ================= -->
+    <ui:ReadTextFile DisplayName="Read BEDS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]" Content="[v_Beds]" />
+    <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_Adm]" />
+    <ui:ReadTextFile DisplayName="Read PENDING_REQUIREMENTS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;PENDING_REQUIREMENTS.psv&quot;)]" Content="[v_Preq]" />
+    <ui:ReadTextFile DisplayName="Read AUDIT_LOG.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;AUDIT_LOG.psv&quot;)]" Content="[v_Audit]" />
+
+    <Assign DisplayName="Build result rows">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Rows]</OutArgument></Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:List(x:String)">[New List(Of String) From {
+"FT1|Admin release + FCFS bed allocation|Earliest request (FTA @10:00) gets the freed ICU bed; FTB (@10:05) stays pending|FTA req " &amp; v_Preq.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;REQ-FTA&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(7).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;, FTB req &quot; &amp; v_Preq.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;REQ-FTB&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(7).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;, FTA bed &quot; &amp; v_Adm.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(1).Trim() = &quot;FTA&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(3).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;|&quot; &amp; If(v_Preq.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;REQ-FTA&quot; AndAlso l.Split(&quot;|&quot;c)(7).Trim() = &quot;FULFILLED&quot;) AndAlso v_Preq.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;REQ-FTB&quot; AndAlso l.Split(&quot;|&quot;c)(7).Trim() = &quot;OPEN&quot;) AndAlso v_Adm.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(1).Trim() = &quot;FTA&quot; AndAlso l.Split(&quot;|&quot;c)(3).Trim().StartsWith(&quot;ICU&quot;)), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT2|Temporary bed released on transfer|FTA's fallback bed CARD-01 is returned to Available|CARD-01 " &amp; v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;CARD-01&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(3).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;|&quot; &amp; If(v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;CARD-01&quot; AndAlso l.Split(&quot;|&quot;c)(3).Trim() = &quot;Available&quot;), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT3|Release audited with the admin name|AUDIT_LOG has ADMIN_RELEASE_RESOURCE performed by 'Test Admin'|" &amp; v_Audit.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Count(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 6 AndAlso l.Split(&quot;|&quot;c)(2).Trim() = &quot;ADMIN_RELEASE_RESOURCE&quot; AndAlso l.Split(&quot;|&quot;c)(5).Trim() = &quot;Test Admin&quot;) &amp; &quot; row(s)|&quot; &amp; If(v_Audit.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 6 AndAlso l.Split(&quot;|&quot;c)(2).Trim() = &quot;ADMIN_RELEASE_RESOURCE&quot; AndAlso l.Split(&quot;|&quot;c)(5).Trim() = &quot;Test Admin&quot;), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT4|Automatic allocation after release|out_AutoAllocated &gt;= 1 and AUTOMATIC_RESOURCE_ALLOCATION audited|autoAllocated=" &amp; v_RelAlloc.ToString() &amp; &quot;|&quot; &amp; If(v_RelAlloc &gt;= 1 AndAlso v_Audit.Contains(&quot;AUTOMATIC_RESOURCE_ALLOCATION&quot;), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT5|Admin discharge approval|ApproveDischarge approved 1 case and DISCHARGE_APPROVED audited for FTC|approved=" &amp; v_ApprCount.ToString() &amp; &quot;|&quot; &amp; If(v_ApprCount = 1 AndAlso v_Audit.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 3 AndAlso l.Split(&quot;|&quot;c)(1).Trim() = &quot;FTC&quot; AndAlso l.Split(&quot;|&quot;c)(2).Trim() = &quot;DISCHARGE_APPROVED&quot;), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT6|Final bill generated and emailed|BILL_GENERATED + BILL_EMAIL_SENT audited for FTC and BILL_FTC.txt written|" &amp; If(System.IO.File.Exists(System.IO.Path.Combine(v_Notif, &quot;BILL_FTC.txt&quot;)), &quot;bill file yes&quot;, &quot;bill file NO&quot;) &amp; &quot;|&quot; &amp; If(v_Audit.Contains(&quot;|FTC|BILL_GENERATED|&quot;) AndAlso v_Audit.Contains(&quot;|FTC|BILL_EMAIL_SENT|&quot;) AndAlso System.IO.File.Exists(System.IO.Path.Combine(v_Notif, &quot;BILL_FTC.txt&quot;)), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT7|Discharge completed and resources released|FTC ADMISSIONS Status Discharged and bed GEN-03 Available|FTC " &amp; v_Adm.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(1).Trim() = &quot;FTC&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(7).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;, GEN-03 &quot; &amp; v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Where(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;GEN-03&quot;).Select(Function(l) l.Split(&quot;|&quot;c)(3).Trim()).DefaultIfEmpty(&quot;?&quot;).First() &amp; &quot;|&quot; &amp; If(v_Adm.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(1).Trim() = &quot;FTC&quot; AndAlso l.Split(&quot;|&quot;c)(7).Trim() = &quot;Discharged&quot;) AndAlso v_Beds.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Any(Function(l) l.Split(&quot;|&quot;c)(0).Trim() = &quot;GEN-03&quot; AndAlso l.Split(&quot;|&quot;c)(3).Trim() = &quot;Available&quot;), &quot;PASS&quot;, &quot;FAIL&quot;),
+"FT8|Bill emailed to the registered address|An EMAIL_FTC_bill_*.html envelope exists in Data/Notifications|" &amp; System.IO.Directory.GetFiles(v_Notif, &quot;EMAIL_FTC_bill_*.html&quot;).Length.ToString() &amp; &quot; file(s)|&quot; &amp; If(System.IO.Directory.GetFiles(v_Notif, &quot;EMAIL_FTC_bill_*.html&quot;).Length &gt;= 1, &quot;PASS&quot;, &quot;FAIL&quot;)
+}]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Count PASS">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Pass]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Rows.Count(Function(r) r.TrimEnd().EndsWith("|PASS"))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Count FAIL">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Fail]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Rows.Count(Function(r) r.TrimEnd().EndsWith("|FAIL"))]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Report path">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_ReportPath]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Db, &quot;TEST_RESULTS.psv&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Write TEST_RESULTS.psv" FileName="[v_ReportPath]"
+      Text="[&quot;TestId|Scenario|Expected|Actual|Result&quot; &amp; Environment.NewLine &amp; String.Join(Environment.NewLine, v_Rows)]" />
+
+    <Assign DisplayName="out_AllPassed">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_AllPassed]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Fail = 0]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["FineTuneTests: " &amp; v_Pass.ToString() &amp; "/" &amp; v_Rows.Count.ToString() &amp; " checks passed" &amp; If(v_Fail = 0, " - ALL GREEN", " - " &amp; v_Fail.ToString() &amp; " FAILED")]</InArgument></Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: suite done" Level="Info" Message="[out_Summary &amp; &quot;  (release: &quot; &amp; v_RelMsg &amp; &quot;; &quot; &amp; v_ApprSummary &amp; &quot;)&quot;]" />
+    <ui:LogMessage DisplayName="Log: note" Level="Info"
+      Message="[&quot;[FineTuneTests] This suite REWROTE the datastore with FT* fixtures. Run Workflows/ResetDatastore.xaml (or the console /api/restore) before the next Main.xaml demo.&quot;]" />
+  </Sequence>
+</Activity>
