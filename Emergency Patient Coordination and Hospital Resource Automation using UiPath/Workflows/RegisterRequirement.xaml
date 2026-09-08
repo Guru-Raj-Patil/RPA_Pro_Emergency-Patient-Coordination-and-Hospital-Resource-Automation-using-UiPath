@@ -1,0 +1,119 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_RegisterRequirement"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_PatientId" Type="InArgument(x:String)" />
+    <x:Property Name="in_Type" Type="InArgument(x:String)" />
+    <x:Property Name="in_RequestedValue" Type="InArgument(x:String)" />
+    <x:Property Name="in_CurrentFallback" Type="InArgument(x:String)" />
+    <x:Property Name="in_Priority" Type="InArgument(x:String)" />
+    <x:Property Name="out_RequirementId" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="RegisterRequirement" sap2010:WorkflowViewState.IdRef="Sequence_RR">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Path" />
+      <Variable x:TypeArguments="x:String" Name="v_Raw" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_Exists" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_Row" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Path">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Path]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(in_DbFolder, &quot;PENDING_REQUIREMENTS.psv&quot;)]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Register (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <Assign DisplayName="Read existing (or header)">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Raw]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(v_Path), System.IO.File.ReadAllText(v_Path), &quot;RequirementId|CaseId|PatientId|Type|RequestedValue|CurrentFallback|Priority|Status|CreatedAt|UpdatedAt|ResolvedAt&quot;)]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="Already open for this case+type?">
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Exists]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_Raw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split(&quot;|&quot;c)).Any(Function(a) a.Length &gt;= 8 AndAlso a(1).Trim() = in_CaseId.Trim() AndAlso a(3).Trim() = in_Type.Trim() AndAlso (a(7).Trim() = &quot;OPEN&quot; OrElse a(7).Trim() = &quot;ACTION_REQUIRED&quot;))]</InArgument></Assign.Value>
+          </Assign>
+          <If DisplayName="Skip if already open" Condition="[v_Exists]">
+            <If.Then>
+              <Sequence>
+                <ui:LogMessage DisplayName="Log: already open" Level="Trace"
+                  Message="[&quot;[RegisterRequirement] &quot; &amp; in_Type &amp; &quot; requirement already open for &quot; &amp; in_CaseId &amp; &quot; - not duplicated.&quot;]" />
+                <Assign>
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[out_RequirementId]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[v_Raw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split(&quot;|&quot;c)).Where(Function(a) a.Length &gt;= 8 AndAlso a(1).Trim() = in_CaseId.Trim() AndAlso a(3).Trim() = in_Type.Trim() AndAlso (a(7).Trim() = &quot;OPEN&quot; OrElse a(7).Trim() = &quot;ACTION_REQUIRED&quot;)).Select(Function(a) a(0).Trim()).DefaultIfEmpty(&quot;&quot;).First()]</InArgument></Assign.Value>
+                </Assign>
+              </Sequence>
+            </If.Then>
+            <If.Else>
+              <Sequence>
+                <Assign DisplayName="RequirementId">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[out_RequirementId]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">["REQ-" &amp; DateTime.Now.Ticks.ToString()]</InArgument></Assign.Value>
+                </Assign>
+                <Assign DisplayName="Build requirement row">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_Row]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join("|", New String() {out_RequirementId, in_CaseId.Trim(), in_PatientId.Trim(), in_Type.Trim(), If(in_RequestedValue Is Nothing, "", in_RequestedValue.Trim()), If(in_CurrentFallback Is Nothing, "", in_CurrentFallback.Trim()), If(String.IsNullOrEmpty(in_Priority), "LOW", in_Priority.Trim()), "OPEN", v_Now, v_Now, ""})]</InArgument></Assign.Value>
+                </Assign>
+                <ui:AppendLine DisplayName="Append PENDING_REQUIREMENTS row"
+                  FileName="[v_Path]" Text="[v_Row]" />
+                <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: REQUIREMENT_OPENED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                  <ui:InvokeWorkflowFile.Arguments>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[in_DbFolder]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_Action">["REQUIREMENT_OPENED"]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_Description">[in_Type &amp; " requirement opened (requested " &amp; If(String.IsNullOrEmpty(in_RequestedValue), "-", in_RequestedValue) &amp; ", fallback " &amp; If(String.IsNullOrEmpty(in_CurrentFallback), "-", in_CurrentFallback) &amp; ", priority " &amp; If(String.IsNullOrEmpty(in_Priority), "LOW", in_Priority) &amp; ", requested-at " &amp; v_Now &amp; ")"]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                  </ui:InvokeWorkflowFile.Arguments>
+                </ui:InvokeWorkflowFile>
+                <ui:LogMessage DisplayName="Log: requirement opened" Level="Info"
+                  Message="[&quot;[RegisterRequirement] &quot; &amp; out_RequirementId &amp; &quot; &quot; &amp; in_Type &amp; &quot; for &quot; &amp; in_CaseId &amp; &quot; (requested &quot; &amp; in_RequestedValue &amp; &quot;).&quot;]" />
+              </Sequence>
+            </If.Else>
+          </If>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_R" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: register failed" Level="Warn"
+              Message="[&quot;[RegisterRequirement] Non-fatal: could not register &quot; &amp; in_Type &amp; &quot; requirement for &quot; &amp; in_CaseId &amp; &quot;: &quot; &amp; ex_R.Message]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+  </Sequence>
+</Activity>

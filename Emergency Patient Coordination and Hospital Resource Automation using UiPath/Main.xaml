@@ -564,6 +564,72 @@
                         <InArgument x:TypeArguments="x:Boolean" x:Key="in_IsNewCase">[False]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
+                    <If DisplayName="Track unmet requirements (FCFS)" Condition="[v_ApprovalDecision &lt;&gt; &quot;Rejected&quot;]">
+                      <If.Then>
+                        <Sequence DisplayName="Open persistent pending requirements">
+                          <If DisplayName="Bed unavailable?" Condition="[v_BedStatus &lt;&gt; &quot;Available&quot; AndAlso v_BedStatus &lt;&gt; &quot;Reserved&quot;]">
+                            <If.Then>
+                              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="RegisterRequirement: bed" UnSafe="False" WorkflowFileName="Workflows\RegisterRequirement.xaml">
+                                <ui:InvokeWorkflowFile.Arguments>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Type">[If(v_Dept.Trim().ToUpper() = "ICU", "ICU_BED", "BED")]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_RequestedValue">[v_Dept]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CurrentFallback">[""]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Priority">[If(v_EmergType.Trim().ToUpper() = "CRITICAL", "HIGH", If(v_EmergType.Trim().ToUpper() = "URGENT", "MEDIUM", "LOW"))]</InArgument>
+                                </ui:InvokeWorkflowFile.Arguments>
+                              </ui:InvokeWorkflowFile>
+                            </If.Then>
+                          </If>
+                          <If DisplayName="Consultant unavailable?" Condition="[v_CareTeamStatus &lt;&gt; &quot;Assigned&quot;]">
+                            <If.Then>
+                              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="RegisterRequirement: doctor" UnSafe="False" WorkflowFileName="Workflows\RegisterRequirement.xaml">
+                                <ui:InvokeWorkflowFile.Arguments>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Type">["DOCTOR"]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_RequestedValue">[v_Dept]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CurrentFallback">[""]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Priority">[If(v_EmergType.Trim().ToUpper() = "CRITICAL", "HIGH", If(v_EmergType.Trim().ToUpper() = "URGENT", "MEDIUM", "LOW"))]</InArgument>
+                                </ui:InvokeWorkflowFile.Arguments>
+                              </ui:InvokeWorkflowFile>
+                            </If.Then>
+                          </If>
+                          <If DisplayName="Blood short?" Condition="[v_BloodUnits &gt; 0 AndAlso v_BloodStatus &lt;&gt; &quot;Available&quot; AndAlso v_BloodStatus &lt;&gt; &quot;Reserved&quot;]">
+                            <If.Then>
+                              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="RegisterRequirement: blood" UnSafe="False" WorkflowFileName="Workflows\RegisterRequirement.xaml">
+                                <ui:InvokeWorkflowFile.Arguments>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Type">["BLOOD"]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_RequestedValue">[v_BloodGroup &amp; " x" &amp; v_BloodUnits.ToString()]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CurrentFallback">[""]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Priority">[If(v_EmergType.Trim().ToUpper() = "CRITICAL", "HIGH", If(v_EmergType.Trim().ToUpper() = "URGENT", "MEDIUM", "LOW"))]</InArgument>
+                                </ui:InvokeWorkflowFile.Arguments>
+                              </ui:InvokeWorkflowFile>
+                            </If.Then>
+                          </If>
+                          <If DisplayName="Ventilator short?" Condition="[v_VentReq AndAlso v_VentStatus &lt;&gt; &quot;Available&quot; AndAlso v_VentStatus &lt;&gt; &quot;Reserved&quot; AndAlso v_VentStatus &lt;&gt; &quot;Not_Required&quot;]">
+                            <If.Then>
+                              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="RegisterRequirement: ventilator" UnSafe="False" WorkflowFileName="Workflows\RegisterRequirement.xaml">
+                                <ui:InvokeWorkflowFile.Arguments>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Type">["VENTILATOR"]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_RequestedValue">["ventilator"]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_CurrentFallback">[""]</InArgument>
+                                  <InArgument x:TypeArguments="x:String" x:Key="in_Priority">[If(v_EmergType.Trim().ToUpper() = "CRITICAL", "HIGH", If(v_EmergType.Trim().ToUpper() = "URGENT", "MEDIUM", "LOW"))]</InArgument>
+                                </ui:InvokeWorkflowFile.Arguments>
+                              </ui:InvokeWorkflowFile>
+                            </If.Then>
+                          </If>
+                        </Sequence>
+                      </If.Then>
+                    </If>
                     <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Notify: no reservation" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_25" UnSafe="False" WorkflowFileName="Workflows\SendNotification.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
                         <InArgument x:TypeArguments="x:Object" x:Key="in_Config">[v_Config]</InArgument>
