@@ -23,6 +23,8 @@ import socketserver
 import json
 import os
 import re
+import time
+import errno
 import base64
 import zlib
 import sqlite3
@@ -154,11 +156,21 @@ def now_str():
 
 
 def read_text(path):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    except OSError:
-        return ""
+    """Read a UTF-8 file. A genuinely absent file -> "". A real read error
+    (lock, permission, corruption) is retried briefly, then raised - it must
+    never be mistaken for "empty file", which would let a caller rewrite a
+    whole datastore table from scratch and silently lose every other row."""
+    last = None
+    for attempt in range(4):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+        except OSError as e:
+            last = e
+            time.sleep(0.12 * (attempt + 1))
+    raise RuntimeError("could not read %s after retries: %s" % (path, last))
 
 
 def clean_field(v):
@@ -298,22 +310,62 @@ def submit_case(body):
         try:
             result.update(process_case(pid, caseid, name, etype, dept, vent, bg, int(units)))
             result["ok"] = True
-        except Exception as e:  # noqa: BLE001 - never let coordination break the intake write
-            result["caseState"] = "QueuedError"
-            result["message"] = ("Case %s saved for %s, but auto-coordination failed (%s: %s). "
-                                 "Run Main.xaml to process it." % (caseid, name, type(e).__name__, e))
+        except Exception as e:  # noqa: BLE001 - the intake write already succeeded; coordination failure must be loud, not silent
+            result["ok"] = False
+            result["caseState"] = "CoordinationFailed"
+            result["message"] = ("Case %s saved for %s, but auto-coordination FAILED (%s: %s). "
+                                 "The case is flagged for review; run Main.xaml or retry."
+                                 % (caseid, name, type(e).__name__, e))
+            try:
+                audit(caseid, "COORDINATION_FAILED",
+                      "Intake coordination aborted for %s (%s): %s" % (name, type(e).__name__, e))
+                _hdr, _cases = load_table("EMERGENCY_CASES.psv")
+                for _c in _cases:
+                    if _c and _c[0].strip() == caseid and len(_c) >= 11:
+                        _c[2] = "Error"
+                        _c[8] = "Coordination failed at intake - needs review"
+                        _c[10] = now_str()
+                save_table("EMERGENCY_CASES.psv", _hdr, _cases)
+            except Exception:  # noqa: BLE001 - best effort; the client already knows it failed
+                pass
     return result
+
+
+def clear_stale_notifications():
+    """Delete the per-case demo artifacts so a deterministic CaseId from a
+    previous run cannot silently re-authorise a new episode - especially the
+    discharge-approval markers that ProcessDischarge / ApproveDischarge gate on."""
+    folder = os.path.join(ROOT, "Data", "Notifications")
+    patterns = ("DISCHARGE_APPROVED_", "APPROVE_DISCHARGE_", "DISCHARGE_APPROVAL_REQUEST_",
+                "DISCHARGE_CLEARANCE_", "CLINICAL_CLEARANCE_", "CERTIFY_",
+                "TRANSFER_REQUEST_", "TRANSFER_CONFIRM_", "EMAIL_RETRY_",
+                "BILL_", "EMAIL_", "APPROVAL_ER", "EXCEPTION_ER", "Notification_ER",
+                "DISCHARGE_SUMMARY_", "CLAIM_", "FOLLOWUP_", "CLOSED_")
+    removed = 0
+    try:
+        for f in os.listdir(folder):
+            if f.startswith(patterns):
+                try:
+                    os.remove(os.path.join(folder, f))
+                    removed += 1
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return removed
 
 
 def restore_baseline():
     os.makedirs(DB, exist_ok=True)
     cn = sqlite3.connect(SEED_DB)
+    errored = []
     try:
         for table, cols in DB_SCHEMA.items():
             try:
                 rows = cn.execute("SELECT %s FROM %s" % (",".join(cols), table)).fetchall()
-            except sqlite3.Error:
+            except sqlite3.Error as e:
                 rows = []
+                errored.append("%s (%s)" % (table, e))
             with open(os.path.join(DB, table + ".psv"), "w", encoding="utf-8", newline="\n") as f:
                 f.write("|".join(cols) + "\n")
                 for r in rows:
@@ -324,8 +376,13 @@ def restore_baseline():
         f.write("\n".join(BASELINE_INPUT) + "\n")
     with open(os.path.join(DB, "TEST_RESULTS.psv"), "w", encoding="utf-8", newline="\n") as f:
         f.write("TestId|Scenario|Expected|Actual|Result\n")
-    return {"ok": True, "message": "Demo baseline restored: %d tables reseeded, intake queue reset to 8 cases."
-            % len(DB_SCHEMA)}
+    cleared = clear_stale_notifications()
+    msg = ("Demo baseline restored: %d tables reseeded, intake queue reset to 8 cases, "
+           "%d stale notification file(s) cleared." % (len(DB_SCHEMA), cleared))
+    if errored:
+        msg += "  WARNING - these tables came back EMPTY due to a seed-DB error and need attention: " \
+               + "; ".join(errored)
+    return {"ok": not errored, "message": msg, "erroredTables": errored}
 
 
 # ============================================================================
@@ -366,11 +423,24 @@ def config_get(key, default=""):
     return default
 
 
+_FLAG_OFF = {"false", "no", "0", "off", "disabled", "n"}
+_FLAG_ON = {"true", "yes", "1", "on", "enabled", "y"}
+
+
 def config_flag(key, default=True):
-    raw = config_get(key, "")
+    """A Config.psv boolean. Accepts false/no/0/off/disabled as OFF (so an
+    admin setting `AdminManualRelease|no` actually disables it, not just the
+    exact token `false`). An unrecognised value falls back to `default` with a
+    stderr warning rather than silently reading as ON."""
+    raw = config_get(key, "").strip().lower()
     if raw == "":
         return default
-    return raw.strip().lower() != "false"
+    if raw in _FLAG_OFF:
+        return False
+    if raw in _FLAG_ON:
+        return True
+    print("  [config] %s = %r is not a recognised boolean; using default %s" % (key, raw, default))
+    return default
 
 
 def load_table(name):
@@ -381,18 +451,43 @@ def load_table(name):
     return lines[0].split("|"), [l.split("|") for l in lines[1:]]
 
 
-def save_table(name, header, rows):
+def save_table(name, header, rows, allow_empty=False):
     """Atomically rewrite Data/db/<name> (temp file + os.replace) so concurrent
-    dashboard GETs never see a half-written table."""
+    dashboard GETs never see a half-written table.
+
+    read_text() now raises (rather than returning "") on a real read error, so
+    load_table can only hand back ([],[]) for a genuinely empty file - which
+    removes the "spurious empty read -> rebuild from a bare header -> every other
+    row lost" hazard at its source. This function additionally LOGS (loud, but
+    non-fatal - a per-case ledger can legitimately drain to zero) when it is
+    asked to write an empty table over a file that still had data rows.
+    """
     if not header:
         raise ValueError("refusing to write %s with no header" % name)
     path = os.path.join(DB, name)
+    if not rows and not allow_empty and os.path.exists(path):
+        try:
+            existing = [l for l in read_text(path).splitlines() if l.strip()]
+        except RuntimeError:
+            existing = []
+        if len(existing) > 1:
+            print("  [save_table] WARNING: writing %s as header-only; %d data row(s) were on disk. "
+                  "If this was not intended, an upstream read failed." % (name, len(existing) - 1))
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write("|".join(header) + "\n")
         for r in rows:
             f.write("|".join(_san(c) for c in r) + "\n")
-    os.replace(tmp, path)
+    # os.replace is atomic, but on Windows it raises PermissionError (WinError 5/32)
+    # if the target is momentarily held open by a reader / AV scanner. Retry briefly.
+    for attempt in range(8):
+        try:
+            os.replace(tmp, path)
+            return
+        except OSError:
+            if attempt == 7:
+                raise
+            time.sleep(0.08 * (attempt + 1))
 
 
 def append_row(name, fields):
@@ -405,7 +500,18 @@ def audit(caseid, action, description, performed_by="Bot"):
 
 
 def save_patient_contact(pid, caseid, email, phone=""):
-    """Persist the patient's email/phone in PATIENT_CONTACT.psv (idempotent per patient)."""
+    """Persist the patient's email/phone in PATIENT_CONTACT.psv (idempotent per patient).
+
+    A malformed email is stored blank + audited rather than raised - the batch
+    intake path (PatientInput.psv column 13, sweep_pending) must never let a
+    contact-field typo block an emergency admission. The interactive form
+    (submit_case) still rejects a bad address before it gets here."""
+    email = (email or "").strip()
+    if email and not _EMAIL_RE.match(email):
+        audit(caseid or "", "CONTACT_EMAIL_INVALID",
+              "Email '%s' for %s is not a valid address - stored blank; the discharge bill "
+              "cannot be emailed until a valid address is recorded." % (email, pid))
+        email = ""
     if not (email or phone):
         return
     hdr, rows = load_table("PATIENT_CONTACT.psv")
@@ -416,12 +522,20 @@ def save_patient_contact(pid, caseid, email, phone=""):
     save_table("PATIENT_CONTACT.psv", hdr, rows)
 
 
-def patient_email(pid):
+def patient_email(pid, caseid=None):
+    """The patient's registered email. Prefers a row matching this episode's
+    CaseId (column 1) so a re-admission can't mail a stale address; falls back
+    to the newest row for the PatientId."""
     _, rows = load_table("PATIENT_CONTACT.psv")
+    if caseid:
+        for r in rows:
+            if len(r) >= 3 and r[1].strip() == caseid and r[2].strip():
+                return r[2].strip()
+    hit = ""
     for r in rows:
         if len(r) >= 3 and r[0].strip() == pid and r[2].strip():
-            return r[2].strip()
-    return ""
+            hit = r[2].strip()
+    return hit
 
 
 def docs_on_file(pid):
@@ -662,8 +776,12 @@ def _extract_text(path):
     try:
         with open(path, "rb") as f:
             raw = f.read()
-    except OSError:
+    except FileNotFoundError:
         return ""
+    except OSError as e:
+        # a file that EXISTS but can't be read must not be reported as "scanned /
+        # no text layer" - that silently skips document-driven gap-fill.
+        raise RuntimeError("could not read document %s: %s" % (os.path.basename(path), e))
     if raw[:5] == b"%PDF-" or raw[:4] == b"%PDF":
         return _pdf_text(raw)
     try:
@@ -710,7 +828,14 @@ def extract_documents(pid, caseid, form):
                      if os.path.exists(os.path.join(folder, slot + e))), None)
         if not path:
             continue
-        fields = parse_doc_fields(_extract_text(path), slot)
+        try:
+            text = _extract_text(path)
+        except RuntimeError as e:
+            audit(caseid, "DOC_READ_FAILED",
+                  "%s could not be read (%s). Fields NOT extracted; if the form's blood units "
+                  "were left blank they will not be gap-filled - verify manually." % (slot, e))
+            continue
+        fields = parse_doc_fields(text, slot)
         if not fields:
             audit(caseid, "DOC_READ", "%s: no readable text layer (image / scanned / unsupported)" % slot)
             continue
@@ -1114,7 +1239,7 @@ def transfer_bed(req_row):
     hdr_rr, rr = load_table("RESOURCE_RESERVATIONS.psv")
     for r in rr:
         if len(r) >= 6 and r[1].strip() == caseid and r[2].strip() == "Bed" \
-                and r[3].strip() == old_bed and r[5].strip() == "Reserved":
+                and r[3].strip() == old_bed and r[5].strip() in ("Reserved", "Occupied"):
             r[5] = "Released"
     save_table("RESOURCE_RESERVATIONS.psv", hdr_rr, rr)
 
@@ -1129,9 +1254,12 @@ def transfer_bed(req_row):
 
     set_requirement_status(rid, "FULFILLED")
     _delete_signal("TRANSFER_CONFIRM_%s.txt" % caseid)
+    _delete_signal("TRANSFER_REQUEST_%s.txt" % caseid)
     audit(caseid, "BED_TRANSFERRED",
           "Moved from temporary bed %s to %s bed %s." % (old_bed, requested, new_bed))
     audit(caseid, "TEMP_BED_RELEASED", "Temporary bed %s released back to the pool." % old_bed)
+    audit(caseid, "REQUIREMENT_FULFILLED",
+          "%s bed requirement %s fulfilled: %s now in %s bed %s." % (requested, rid, caseid, requested, new_bed))
     if requested.upper() == "ICU":
         audit(caseid, "ICU_ALLOCATED", "ICU bed %s allocated; requirement closed." % new_bed)
     return True, new_bed
@@ -1276,8 +1404,16 @@ def monitor_tick(auto_confirm=False):
 
     for r in reqs:
         rtype, status, caseid, rid = r[3].strip(), r[7].strip(), r[1].strip(), r[0].strip()
-        if case_status.get(caseid, "").upper() in ("DISCHARGED", "CLOSED", "ERROR", "REJECTED"):
+        cstat = case_status.get(caseid, "").upper()
+        if cstat in ("DISCHARGED", "CLOSED", "ERROR", "REJECTED"):
             set_requirement_status(rid, "CANCELLED")
+            continue
+        if caseid not in case_status:
+            # No case row seen this pass - a transient read glitch or a genuine
+            # orphan. NEVER allocate a resource (bed / blood / doctor / vent) to a
+            # case that doesn't exist; leave the row OPEN for a later pass rather
+            # than cancelling what might be a live patient mid-write.
+            print("  [monitor] %s: no EMERGENCY_CASES row this pass; %s left OPEN" % (caseid, rid))
             continue
         try:
             if rtype in ("ICU_BED", "BED"):
@@ -1331,8 +1467,14 @@ def monitor_tick(auto_confirm=False):
             elif rtype == "VENTILATOR":
                 ok, _i = fulfil_vent(r)
                 acted += 1 if ok else 0
-        except Exception as e:  # noqa: BLE001 - one bad requirement must not stop the monitor
+        except Exception as e:  # noqa: BLE001 - one bad requirement must not stop the pass, but it must be LOUD
             print("  [monitor] %s %s: %s" % (caseid, rtype, e))
+            try:
+                audit(caseid, "AUTOMATIC_ALLOCATION_FAILED",
+                      "Auto-allocation of %s for %s errored and was left for the next pass: %s: %s"
+                      % (rtype, caseid, type(e).__name__, e))
+            except Exception:  # noqa: BLE001
+                pass
     return acted
 
 
@@ -1413,6 +1555,8 @@ def _admit_held_into_ward(req_row):
     save_table("EMERGENCY_CASES.psv", hdr_c, cases)
     audit(caseid, "ADMISSION_CONFIRMED",
           "%s: %s (admitted the moment a %s bed became available)." % (adm_id, adm_summary, ward))
+    audit(caseid, "REQUIREMENT_FULFILLED",
+          "%s bed requirement %s fulfilled: held case %s admitted into %s bed %s." % (ward, rid, caseid, ward, bed_id))
     _recompute_pending(caseid)
     return True
 
@@ -1625,20 +1769,36 @@ def build_state():
             alerts.append({"sev": "ERROR", "caseId": r[0].strip(),
                            "title": "%s - processing error" % r[0].strip(), "body": r[8].strip()})
     for r in blood:
-        if len(r) >= 3 and _int(r[1]) < _int(r[2]):
+        # at-or-below the reserve threshold (matches the dashboard "running low" list).
+        if len(r) >= 3 and _int(r[1]) <= _int(r[2]):
             alerts.append({"sev": "HIGH", "caseId": "",
-                           "title": "Blood %s below threshold" % r[0].strip(),
-                           "body": "%s units available, minimum %s." % (r[1].strip(), r[2].strip())})
+                           "title": "Blood %s at/below threshold" % r[0].strip(),
+                           "body": "%s units available, minimum %s. Restock this group first." % (r[1].strip(), r[2].strip())})
     for cid, label, detail in doc_checks:
         alerts.append({"sev": "WARN", "caseId": cid,
                        "title": "%s - document does not match the form" % cid,
                        "body": "%s: %s. The form value is used; please verify." % (label, detail)})
-    # F13: a discharge whose bill could not be emailed - surfaced, never blocking.
-    for r in audit_rows[-80:]:
-        if len(r) >= 4 and r[2].strip() == "EMAIL_SEND_FAILED":
-            alerts.append({"sev": "WARN", "caseId": r[1].strip(),
-                           "title": "%s - discharge bill not emailed" % (r[1].strip() or "bill"),
-                           "body": r[3].strip()})
+    # F13: a discharge whose bill could not be emailed - surfaced from the DURABLE
+    # EMAIL_RETRY_<case>.txt marker (not a tail scan that scrolls away), so the
+    # operator sees it until they actually retry.
+    try:
+        _notif = os.path.join(ROOT, "Data", "Notifications")
+        for f in (os.listdir(_notif) if os.path.isdir(_notif) else []):
+            if f.startswith("EMAIL_RETRY_") and f.endswith(".txt"):
+                cid = f[len("EMAIL_RETRY_"):-4]
+                alerts.append({"sev": "WARN", "caseId": cid,
+                               "title": "%s - discharge bill not emailed" % (cid or "bill"),
+                               "body": "The final bill could not be emailed. Discharge is complete; "
+                                       "use the retry button (POST /api/retry-bill-email)."})
+    except OSError:
+        pass
+    # a bed force-vacated by an admin without discharge paperwork - needs finishing.
+    for r in adm:
+        if len(r) >= 8 and r[7].strip() == "Vacated":
+            alerts.append({"sev": "HIGH", "caseId": r[1].strip(),
+                           "title": "%s - bed force-vacated, discharge not finalised" % r[1].strip(),
+                           "body": "An admin freed this patient's bed without discharge paperwork. "
+                                   "Approve discharge to generate the final bill and close the case."})
 
     doctors_json = [{"id": r[0].strip(), "name": r[1].strip(), "dept": r[2].strip(),
                      "onCall": r[6].strip(), "load": _int(r[9]), "max": _int(r[10]),
@@ -1667,10 +1827,11 @@ def build_state():
                    "min": (_int(r[2]) if len(r) >= 3 else 0)} for r in blood if r],
     }
 
-    # --- discharge-approval queue (Feature 8): every active admission awaits admin sign-off ---
+    # --- discharge-approval queue (Feature 8): every active admission awaits admin sign-off.
+    #     A force-Vacated bed also stays here so its billing can still be finalised. ---
     discharge_queue = []
     for a in adm:
-        if len(a) >= 8 and a[7].strip() in ("Admitted", "FitForDischarge"):
+        if len(a) >= 8 and a[7].strip() in ("Admitted", "FitForDischarge", "Vacated"):
             cid = a[1].strip()
             cj = next((c for c in cases_json if c["caseId"] == cid), None)
             discharge_queue.append({
@@ -1680,7 +1841,8 @@ def build_state():
                 "attending": (cj["attendingDoctorName"] if cj else a[4].strip()) or a[4].strip(),
                 "admittedAt": a[5].strip(), "bill": (cj["bill"] if cj else 0),
                 "admissionStatus": a[7].strip(),
-                "email": patient_email(a[2].strip()),
+                "clinicallyCertified": a[7].strip() == "FitForDischarge",
+                "email": patient_email(a[2].strip(), cid),
                 "hasOpenRequirements": bool(cj and cj["openRequirements"]) if cj else False,
             })
 
@@ -1811,6 +1973,11 @@ def release_resource(body):
         save_table("BEDS.psv", hdr, beds)
         if occ:
             rel_case = occ[1].strip()
+            occ_pid, occ_att = occ[2].strip(), (occ[4].strip() if len(occ) >= 5 else "")
+            _, _p = load_table("PATIENTS.psv")
+            _prow = next((r for r in _p if r and r[0].strip() == occ_pid), None)
+            occ_etype = (_prow[4].strip() if _prow and len(_prow) >= 5 else "Standard")
+            occ_dept = (_prow[5].strip() if _prow and len(_prow) >= 6 else b[1].strip())
             hdr_a, adm_rows = load_table("ADMISSIONS.psv")
             for a in adm_rows:
                 if len(a) >= 9 and a[3].strip() == rid and a[7].strip() in ("Admitted", "FitForDischarge"):
@@ -1820,9 +1987,23 @@ def release_resource(body):
             hdr_c, cases = load_table("EMERGENCY_CASES.psv")
             for c in cases:
                 if c and c[0].strip() == rel_case and len(c) >= 11:
+                    c[2] = "FORCE_VACATED"
                     c[4] = "Released"
+                    c[8] = "Bed force-freed by admin - approve discharge to finalise billing"
                     c[10] = now
             save_table("EMERGENCY_CASES.psv", hdr_c, cases)
+            # close this patient's OTHER resources too (vent / blood / doctor) so a
+            # forced eviction doesn't strand reservations or inflate doctor load,
+            # and re-enter them into FCFS for a fresh bed.
+            _release_after_discharge(rel_case, occ_pid, rid, occ_att)
+            register_requirement(rel_case, occ_pid,
+                                 "ICU_BED" if occ_dept.upper() == "ICU" else "BED",
+                                 occ_dept, "", priority_of(occ_etype))
+            audit(rel_case, "FORCE_VACATED",
+                  "Bed %s force-freed by %s while occupied by %s (%s). Patient's other resources "
+                  "released; a fresh %s bed requirement opened; billing must still be finalised via "
+                  "'Approve discharge'." % (rid, admin, occ[1].strip(), occ_pid, occ_dept),
+                  performed_by=admin)
         _reservation_release(rel_case, "Bed", rid)
         if vent_link:
             hdr_v, vents = load_table("VENTILATORS.psv")
@@ -1832,7 +2013,7 @@ def release_resource(body):
                     v[3] = now
             save_table("VENTILATORS.psv", hdr_v, vents)
         detail = "Bed %s released by %s (was %s)%s. %s" % (
-            rid, admin, prev, (" - vacated %s" % rel_case) if rel_case else "", reason)
+            rid, admin, prev, (" - force-vacated %s" % rel_case) if rel_case else "", reason)
 
     elif kind == "VENTILATOR":
         hdr, vents = load_table("VENTILATORS.psv")
@@ -2057,6 +2238,15 @@ def _release_after_discharge(caseid, pid, bed_id, att_id):
     return freed
 
 
+def _clinical_clearance_for(caseid):
+    """Return (doctorId, at) from an existing DISCHARGES draft, or ("","") if none."""
+    _, drows = load_table("DISCHARGES.psv")
+    for r in drows:
+        if r and r[0].strip() == "DIS-" + caseid and len(r) >= 5:
+            return r[3].strip(), r[4].strip()
+    return "", ""
+
+
 def approve_discharge(body):
     caseid = str(body.get("caseId", "")).strip()
     admin = _san(body.get("admin", "")) or "Admin"
@@ -2065,8 +2255,9 @@ def approve_discharge(body):
     hdr_a, adm_rows, a = _adm_row_for(caseid)
     if not a:
         return {"ok": False, "message": "No admission found for %s." % caseid}
-    if a[7].strip() not in ("Admitted", "FitForDischarge"):
-        return {"ok": False, "message": "%s is not an active admission (status: %s)." % (caseid, a[7].strip())}
+    adm_status = a[7].strip()
+    if adm_status not in ("Admitted", "FitForDischarge", "Vacated"):
+        return {"ok": False, "message": "%s is not an active admission (status: %s)." % (caseid, adm_status)}
 
     pid, bed_id, att_id, admitted_at = a[2].strip(), a[3].strip(), a[4].strip(), a[5].strip()
     _, pats = load_table("PATIENTS.psv")
@@ -2074,70 +2265,119 @@ def approve_discharge(body):
     name = prow[1].strip() if prow and len(prow) >= 2 else pid
     now = now_str()
 
+    # ---- clinical gate: administrative approval NEVER substitutes for the
+    #      attending doctor's fitness certification (HUMAN GATE 2). ----
+    clr_by, clr_at = _clinical_clearance_for(caseid)
+    if adm_status == "FitForDischarge" and clr_by:
+        pass  # properly certified by CertifyDischarge
+    elif config_flag("AutoCertifyDischarge", True):
+        # demo path - auto-certify on the attending's behalf and SAY SO.
+        clr_by, clr_at = (att_id or "attending"), now
+        audit(caseid, "DISCHARGE_CERTIFIED",
+              "Auto-certified fit for discharge on behalf of %s (Config AutoCertifyDischarge=True); "
+              "no clinical assessment performed by the bot." % clr_by,
+              performed_by="%s (auto)" % (att_id or "attending"))
+    else:
+        return {"ok": False, "needsCertification": True, "caseId": caseid,
+                "message": "%s has not been certified fit for discharge by the attending doctor. "
+                           "Run CertifyDischarge (HUMAN GATE 2) first, or set Config "
+                           "AutoCertifyDischarge=True for a demo run." % caseid}
+
     audit(caseid, "DISCHARGE_APPROVED",
-          "Discharge approved by %s for %s (%s); admitted %s, bed %s." % (admin, name, pid, admitted_at, bed_id),
+          "Discharge approved by %s for %s (%s); admitted %s, bed %s; clinical clearance by %s at %s."
+          % (admin, name, pid, admitted_at, bed_id, clr_by or "-", clr_at or "-"),
           performed_by=admin)
 
     lines, subtotal = _sum_billing(caseid)
+    raw_tax = config_get("BillingTaxPercent", "0") or "0"
     try:
-        tax_pct = float(config_get("BillingTaxPercent", "0") or "0")
+        tax_pct = float(raw_tax)
     except ValueError:
         tax_pct = 0.0
+        audit(caseid, "BILLING_CONFIG_WARNING",
+              "BillingTaxPercent=%r is not a number; charging 0%% tax on this bill." % raw_tax)
     tax = int(round(subtotal * tax_pct / 100.0))
     total = subtotal + tax
 
     _, docs_tbl = load_table("DOCUMENTS.psv")
     insured = any(len(r) >= 5 and r[1].strip() == pid and r[2].strip() == "Insurance"
                   and r[4].strip() == "Present" for r in docs_tbl)
-    pay_status = "InsurancePending" if insured else "Invoiced"
-    email = patient_email(pid)
+    if total == 0 and not lines:
+        pay_status = "NotBillable"
+        audit(caseid, "BILL_ZERO_NO_CHARGES",
+              "No billable charges were posted for %s; final bill INR 0, marked NotBillable." % caseid)
+    else:
+        pay_status = "InsurancePending" if insured else "Invoiced"
+    email = patient_email(pid, caseid)
     followup = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
 
-    bill_path = _write_bill_files(caseid, pid, name, a, lines, subtotal, tax, total, pay_status, followup, att_id)
-    audit(caseid, "BILL_GENERATED",
-          "Final bill: subtotal %d + tax %d = %d INR across %d line item(s); payment %s."
-          % (subtotal, tax, total, len(lines), pay_status), performed_by="Bot")
-
-    email_ok, email_note, email_file = True, "", ""
     try:
-        email_file = _send_bill_email(caseid, pid, name, email, total)
-        audit(caseid, "BILL_EMAIL_SENT", "Final bill emailed to %s." % email, performed_by="Bot")
-    except Exception as e:  # noqa: BLE001 - email failure must not roll back the discharge
-        email_ok, email_note = False, str(e)
-        audit(caseid, "EMAIL_SEND_FAILED",
-              "Bill NOT emailed (%s). Discharge, billing and resource release stand; retry from the admin panel."
-              % e, performed_by="Bot")
+        bill_path = _write_bill_files(caseid, pid, name, a, lines, subtotal, tax, total, pay_status, followup, att_id)
+        audit(caseid, "BILL_GENERATED",
+              "Final bill: subtotal %d + tax %d = %d INR across %d line item(s); payment %s."
+              % (subtotal, tax, total, len(lines), pay_status), performed_by="Bot")
 
-    freed = _release_after_discharge(caseid, pid, bed_id, att_id)
-    audit(caseid, "RESOURCE_RELEASED_AFTER_DISCHARGE",
-          "Freed on discharge of %s: %s." % (caseid, ", ".join(freed) or "nothing"), performed_by="Bot")
+        email_ok, email_note = True, ""
+        try:
+            _send_bill_email(caseid, pid, name, email, total)
+            audit(caseid, "BILL_EMAIL_SENT", "Final bill emailed to %s." % email, performed_by="Bot")
+            _delete_signal("EMAIL_RETRY_%s.txt" % caseid)
+        except Exception as e:  # noqa: BLE001 - email failure must NOT roll back the discharge (Feature 13)
+            email_ok, email_note = False, str(e)
+            audit(caseid, "EMAIL_SEND_FAILED",
+                  "Bill NOT emailed (%s). Discharge, billing and resource release STAND; "
+                  "retry from the admin panel (POST /api/retry-bill-email)." % e, performed_by="Bot")
+            _write_retry_marker(caseid, pid, email, total, str(e))
 
-    hdr_d, drows = load_table("DISCHARGES.psv")
-    if not hdr_d:
-        hdr_d = DB_SCHEMA["DISCHARGES"]
-    drows = [r for r in drows if not (r and r[0].strip() == "DIS-" + caseid)]
-    drows.append(["DIS-" + caseid, caseid, pid, admin, now, str(total), pay_status, followup,
-                  os.path.relpath(bill_path, ROOT).replace(os.sep, "/"), now])
-    save_table("DISCHARGES.psv", hdr_d, drows)
+        # commit the discharge STATUS before freeing beds, so the background
+        # monitor can never hand a freed bed to another patient while this case
+        # still reads "Admitted".
+        hdr_d, drows = load_table("DISCHARGES.psv")
+        if not hdr_d:
+            hdr_d = DB_SCHEMA["DISCHARGES"]
+        drows = [r for r in drows if not (r and r[0].strip() == "DIS-" + caseid)]
+        drows.append(["DIS-" + caseid, caseid, pid, clr_by, clr_at, str(total), pay_status, followup,
+                      os.path.relpath(bill_path, ROOT).replace(os.sep, "/"), now])
+        save_table("DISCHARGES.psv", hdr_d, drows)
 
-    for r in adm_rows:
-        if r[1].strip() == caseid and len(r) >= 9:
-            r[7] = "Discharged"
-            r[8] = now
-    save_table("ADMISSIONS.psv", hdr_a, adm_rows)
+        for r in adm_rows:
+            if r[1].strip() == caseid and len(r) >= 9:
+                r[7] = "Discharged"
+                r[8] = now
+        save_table("ADMISSIONS.psv", hdr_a, adm_rows)
 
-    hdr_c, cases = load_table("EMERGENCY_CASES.psv")
-    for r in cases:
-        if r and r[0].strip() == caseid and len(r) >= 11:
-            r[2] = "DISCHARGED"
-            r[4] = "Released"
-            r[8] = "None"
-            r[10] = now
-    save_table("EMERGENCY_CASES.psv", hdr_c, cases)
+        hdr_c, cases = load_table("EMERGENCY_CASES.psv")
+        for r in cases:
+            if r and r[0].strip() == caseid and len(r) >= 11:
+                r[2] = "DISCHARGED"
+                r[4] = "Released"
+                r[8] = "None"
+                r[10] = now
+        save_table("EMERGENCY_CASES.psv", hdr_c, cases)
 
-    for r in open_requirements():
-        if r[1].strip() == caseid:
-            set_requirement_status(r[0].strip(), "CANCELLED")
+        for r in open_requirements():
+            if r[1].strip() == caseid:
+                set_requirement_status(r[0].strip(), "CANCELLED")
+
+        freed = _release_after_discharge(caseid, pid, bed_id, att_id)
+        audit(caseid, "RESOURCE_RELEASED_AFTER_DISCHARGE",
+              "Freed on discharge of %s: %s." % (caseid, ", ".join(freed) or "nothing"), performed_by="Bot")
+    except Exception as e:  # noqa: BLE001 - a failure AFTER DISCHARGE_APPROVED must be LOUD, not a silent 500
+        audit(caseid, "DISCHARGE_FAILED_MIDWAY",
+              "Discharge of %s failed after approval (%s: %s). The case is flagged for review; "
+              "state may be partially applied." % (caseid, type(e).__name__, e), performed_by="Bot")
+        try:
+            hdr_c, cases = load_table("EMERGENCY_CASES.psv")
+            for r in cases:
+                if r and r[0].strip() == caseid and len(r) >= 11:
+                    r[2] = "Error"
+                    r[8] = "Discharge failed after approval - needs review"
+                    r[10] = now_str()
+            save_table("EMERGENCY_CASES.psv", hdr_c, cases)
+        except Exception:  # noqa: BLE001
+            pass
+        return {"ok": False, "caseId": caseid,
+                "message": "Discharge of %s FAILED after approval (%s). Flagged for review." % (caseid, e)}
 
     fulfilled = monitor_tick(auto_confirm=True)
     if fulfilled:
@@ -2148,6 +2388,7 @@ def approve_discharge(body):
     return {
         "ok": True, "caseId": caseid, "patientId": pid,
         "subtotal": subtotal, "tax": tax, "total": total, "paymentStatus": pay_status,
+        "clinicalClearanceBy": clr_by,
         "emailSent": email_ok, "emailAddress": email, "emailError": "" if email_ok else email_note,
         "billPath": os.path.relpath(bill_path, ROOT).replace(os.sep, "/"),
         "autoAllocated": fulfilled,
@@ -2156,6 +2397,58 @@ def approve_discharge(body):
             ("emailed to " + email) if email_ok else ("NOT emailed (" + email_note + ")"),
             (" %d pending requirement(s) actioned." % fulfilled) if fulfilled else ""),
     }
+
+
+def _write_retry_marker(caseid, pid, email, total, reason):
+    """Durable record that a discharge bill needs re-emailing - build_state turns
+    the presence of this file into a WARN alert that does NOT scroll away."""
+    try:
+        folder = os.path.join(ROOT, "Data", "Notifications")
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, "EMAIL_RETRY_%s.txt" % caseid), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join([
+                "DISCHARGE BILL EMAIL FAILED - retry required",
+                "Case: %s   Patient: %s" % (caseid, pid),
+                "Address on file: %s" % (email or "(none)"),
+                "Bill total: INR %s" % "{:,}".format(total),
+                "Reason: %s" % reason,
+                "Raised: %s" % now_str(),
+                "",
+                "Retry: POST /api/retry-bill-email {\"caseId\": \"%s\"}  (or the admin dashboard button)." % caseid,
+            ]) + "\n")
+    except OSError as e:
+        print("  [approve_discharge] could not write EMAIL_RETRY marker: %s" % e)
+
+
+def retry_bill_email(body):
+    """Re-send a discharge bill whose email previously failed. Clears the marker
+    on success; the discharge itself is already complete and is untouched."""
+    caseid = str(body.get("caseId", "")).strip()
+    if not caseid:
+        return {"ok": False, "message": "caseId is required."}
+    _, drows = load_table("DISCHARGES.psv")
+    d = next((r for r in drows if r and r[0].strip() == "DIS-" + caseid and len(r) >= 6), None)
+    if not d:
+        return {"ok": False, "message": "No completed discharge for %s to re-bill." % caseid}
+    _, adm = load_table("ADMISSIONS.psv")
+    arow = next((r for r in adm if len(r) >= 3 and r[1].strip() == caseid), None)
+    pid = arow[2].strip() if arow else d[2].strip()
+    _, pats = load_table("PATIENTS.psv")
+    prow = next((r for r in pats if r and r[0].strip() == pid), None)
+    name = prow[1].strip() if prow and len(prow) >= 2 else pid
+    total = _int(d[5])
+    email = patient_email(pid, caseid)
+    try:
+        _send_bill_email(caseid, pid, name, email, total)
+        audit(caseid, "BILL_EMAIL_SENT", "Final bill re-emailed to %s (retry succeeded)." % email, performed_by="Bot")
+        _delete_signal("EMAIL_RETRY_%s.txt" % caseid)
+        return {"ok": True, "caseId": caseid, "emailAddress": email,
+                "message": "Bill for %s re-emailed to %s." % (caseid, email)}
+    except Exception as e:  # noqa: BLE001
+        audit(caseid, "EMAIL_SEND_FAILED", "Retry also failed (%s)." % e, performed_by="Bot")
+        _write_retry_marker(caseid, pid, email, total, str(e))
+        return {"ok": False, "caseId": caseid, "emailError": str(e),
+                "message": "Retry failed for %s: %s" % (caseid, e)}
 
 
 # ---------------------------------------------------------------- HTTP
@@ -2175,7 +2468,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path in ("/", "/index.html"):
-            self._send(200, render_page(), "text/html; charset=utf-8")
+            with PROCESS_LOCK:                       # serve a self-consistent multi-table snapshot
+                page = render_page()
+            self._send(200, page, "text/html; charset=utf-8")
         elif path == "/api/ping":
             self._send(200, json.dumps({"ok": True, "hospital": hospital_name(), "time": now_str()}))
         elif path == "/api/state":
@@ -2221,6 +2516,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             elif path == "/api/approve-discharge":
                 with PROCESS_LOCK:
                     payload = approve_discharge(body)
+                self._send(200, json.dumps(payload))
+            elif path == "/api/retry-bill-email":
+                with PROCESS_LOCK:
+                    payload = retry_bill_email(body)
                 self._send(200, json.dumps(payload))
             else:
                 self._send(404, json.dumps({"ok": False, "error": "not found"}))
