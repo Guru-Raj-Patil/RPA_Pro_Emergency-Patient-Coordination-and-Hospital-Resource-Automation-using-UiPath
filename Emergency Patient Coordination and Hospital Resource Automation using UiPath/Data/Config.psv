@@ -37,3 +37,8 @@ WardFallbackUrgent|General
 WardFallbackStandard|General
 BillingAccrualEverySeconds|0
 ExtractDocumentData|True
+AdminManualRelease|True
+PendingAllocationOrder|fifo
+DischargeRequiresAdminApproval|True
+BillingTaxPercent|0
+BillingEmailSubjectPrefix|Hospital Discharge Bill

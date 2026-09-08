@@ -87,6 +87,7 @@ TOKENS = {
     "<!--RPA_CLAIMS-->": "INSURANCE_CLAIMS.psv",
     "<!--RPA_PENDINGREQ-->": "PENDING_REQUIREMENTS.psv",
     "<!--RPA_DOCDATA-->": "PATIENT_DOCUMENT_DATA.psv",
+    "<!--RPA_CONTACT-->": "PATIENT_CONTACT.psv",
 }
 
 BASELINE_INPUT = [
@@ -136,7 +137,15 @@ DB_SCHEMA = {
     # --- data read out of the uploaded documents (one row per extracted field) ---
     "PATIENT_DOCUMENT_DATA": ["RecordId", "PatientId", "CaseId", "DocumentType",
                               "Field", "Value", "ExtractedAt"],
+    # --- patient contact details captured at registration (email for the discharge bill) ---
+    "PATIENT_CONTACT": ["PatientId", "CaseId", "EmailAddress", "Phone", "CapturedAt"],
 }
+
+# A patient's registered email lives in its own side table (PATIENT_CONTACT.psv) rather
+# than a new PATIENTS.psv column, so none of the hand-parsed .xaml LINQ or the SQLite
+# reseed path has to change. restore_baseline() writes it header-only when the seed DB
+# has no such table, which is the correct empty state.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 # ---------------------------------------------------------------- helpers
@@ -218,6 +227,8 @@ def submit_case(body):
     bg = clean_field(body.get("bloodGroup", "")) or "O+"
     units = clean_field(body.get("bloodUnits", "")) or "0"
     notes = clean_field(body.get("notes", "")) or "Submitted from intake console"
+    email = clean_field(body.get("email", "") or body.get("emailAddress", ""))
+    phone = clean_field(body.get("phone", ""))
     docs = body.get("docs", {}) or {}
 
     try:
@@ -228,6 +239,8 @@ def submit_case(body):
         int(units)
     except ValueError:
         raise ValueError("Blood units must be a number.")
+    if email and not _EMAIL_RE.match(email):
+        raise ValueError("Enter a valid email address (e.g. patient@gmail.com).")
 
     num = next_patient_number()
     pid = "P%d" % num
@@ -238,6 +251,7 @@ def submit_case(body):
         [pid, name, age, gender, etype, dept, "Yes" if vent else "No", bg, units, "Pending", "", notes]))
     append_line(os.path.join(DB, "PATIENTS.psv"), "|".join(
         [pid, name, age, gender, etype, dept, "1" if vent else "0", bg, units, ts]))
+    save_patient_contact(pid, caseid, email, phone)
 
     existing_docs = data_rows("DOCUMENTS.psv")
     next_doc_id = max([int(r[0]) for r in existing_docs if r and r[0].strip().isdigit()] + [0]) + 1
@@ -272,6 +286,7 @@ def submit_case(body):
         "ok": True,
         "patientId": pid,
         "caseId": caseid,
+        "email": email,
         "documentsOnFile": present,
         "documentsMissing": [d for d in REQUIRED_DOCS if d not in present],
         "message": "Case %s queued for %s. Run the coordination process to see it progress." % (caseid, name),
@@ -387,6 +402,26 @@ def append_row(name, fields):
 def audit(caseid, action, description, performed_by="Bot"):
     append_row("AUDIT_LOG.psv",
                [str(net_ticks()), caseid, action, _san(description), now_str(), performed_by])
+
+
+def save_patient_contact(pid, caseid, email, phone=""):
+    """Persist the patient's email/phone in PATIENT_CONTACT.psv (idempotent per patient)."""
+    if not (email or phone):
+        return
+    hdr, rows = load_table("PATIENT_CONTACT.psv")
+    if not hdr:
+        hdr = DB_SCHEMA["PATIENT_CONTACT"]
+    rows = [r for r in rows if not (r and r[0].strip() == pid)]
+    rows.append([pid, caseid, email, phone, now_str()])
+    save_table("PATIENT_CONTACT.psv", hdr, rows)
+
+
+def patient_email(pid):
+    _, rows = load_table("PATIENT_CONTACT.psv")
+    for r in rows:
+        if len(r) >= 3 and r[0].strip() == pid and r[2].strip():
+            return r[2].strip()
+    return ""
 
 
 def docs_on_file(pid):
@@ -1214,15 +1249,24 @@ def _delete_signal(fname):
         pass
 
 
-def monitor_tick():
-    """One pass of the availability monitor. Highest-priority-first. Never allocates
+def monitor_tick(auto_confirm=False):
+    """One pass of the availability monitor. Earliest valid request first. Never allocates
     more beds than are actually free (this tick or across ticks); admits held patients
     straight into a freed bed; routes temp->requested-ward moves through the confirm
-    gate; reverts an ACTION_REQUIRED flag if the bed is taken before it is confirmed."""
+    gate; reverts an ACTION_REQUIRED flag if the bed is taken before it is confirmed.
+
+    auto_confirm=True is used right after an admin release / discharge approval: the admin
+    is the human authorisation, so the follow-on bed transfer runs immediately instead of
+    raising a second ACTION_REQUIRED gate (revised spec Feature 3 - fully automatic)."""
     reqs = open_requirements()
     if not reqs:
         return 0
-    reqs.sort(key=lambda r: (_PRIO_RANK.get(r[6].strip(), 3), r[8]))   # priority, then age
+    # Revised spec: EARLIEST VALID REQUEST FIRST - order by RequirementCreatedAt (r[8]),
+    # priority only as a tie-breaker. Set PendingAllocationOrder|priority to flip it back.
+    if config_get("PendingAllocationOrder", "fifo").strip().lower() == "priority":
+        reqs.sort(key=lambda r: (_PRIO_RANK.get(r[6].strip(), 3), r[8], r[0]))
+    else:
+        reqs.sort(key=lambda r: (r[8], _PRIO_RANK.get(r[6].strip(), 3), r[0]))
     require_confirm = config_flag("RequireTransferConfirmation", True)
     auto_doc = config_flag("AutoAssignDoctorWhenFree", True)
     acted = 0
@@ -1259,7 +1303,12 @@ def monitor_tick():
                     if ok:
                         committed[ward.lower()] = committed.get(ward.lower(), 0) + 1
                         acted += 1
-                elif status == "OPEN" and not require_confirm:
+                elif status == "OPEN" and (auto_confirm or not require_confirm):
+                    ok, _i = transfer_bed(r)
+                    if ok:
+                        committed[ward.lower()] = committed.get(ward.lower(), 0) + 1
+                        acted += 1
+                elif status == "ACTION_REQUIRED" and auto_confirm:
                     ok, _i = transfer_bed(r)
                     if ok:
                         committed[ward.lower()] = committed.get(ward.lower(), 0) + 1
@@ -1584,11 +1633,56 @@ def build_state():
         alerts.append({"sev": "WARN", "caseId": cid,
                        "title": "%s - document does not match the form" % cid,
                        "body": "%s: %s. The form value is used; please verify." % (label, detail)})
+    # F13: a discharge whose bill could not be emailed - surfaced, never blocking.
+    for r in audit_rows[-80:]:
+        if len(r) >= 4 and r[2].strip() == "EMAIL_SEND_FAILED":
+            alerts.append({"sev": "WARN", "caseId": r[1].strip(),
+                           "title": "%s - discharge bill not emailed" % (r[1].strip() or "bill"),
+                           "body": r[3].strip()})
 
     doctors_json = [{"id": r[0].strip(), "name": r[1].strip(), "dept": r[2].strip(),
                      "onCall": r[6].strip(), "load": _int(r[9]), "max": _int(r[10]),
                      "free": r[6].strip() == "OnCall" and _int(r[9]) < _int(r[10])}
                     for r in docs if len(r) >= 11]
+
+    # --- admin resource-release grid (Feature 1 / 5) ---
+    name_by_case = {c["caseId"]: c["name"] for c in cases_json}
+    bed_occ = {a[3].strip(): a[1].strip() for a in adm
+               if len(a) >= 8 and a[7].strip() in ("Admitted", "FitForDischarge")}
+    resources = {
+        "beds": [{"id": b[0].strip(), "ward": b[1].strip(),
+                  "type": (b[2].strip() if len(b) >= 3 else ""), "status": b[3].strip(),
+                  "ventilator": (b[4].strip() if len(b) >= 5 else ""),
+                  "caseId": bed_occ.get(b[0].strip(), ""),
+                  "patient": name_by_case.get(bed_occ.get(b[0].strip(), ""), "")}
+                 for b in beds if len(b) >= 4],
+        "ventilators": [{"id": v[0].strip(), "status": v[1].strip(),
+                         "location": (v[2].strip() if len(v) >= 3 else "")}
+                        for v in vents if len(v) >= 2],
+        "doctors": [{"id": r[0].strip(), "name": r[1].strip(), "dept": r[2].strip().replace("DEPT-", ""),
+                     "onCall": r[6].strip(), "load": _int(r[9]), "max": _int(r[10]),
+                     "atCapacity": (r[6].strip() != "OnCall") or _int(r[9]) >= _int(r[10])}
+                    for r in docs if len(r) >= 11],
+        "blood": [{"group": r[0].strip(), "units": _int(r[1]),
+                   "min": (_int(r[2]) if len(r) >= 3 else 0)} for r in blood if r],
+    }
+
+    # --- discharge-approval queue (Feature 8): every active admission awaits admin sign-off ---
+    discharge_queue = []
+    for a in adm:
+        if len(a) >= 8 and a[7].strip() in ("Admitted", "FitForDischarge"):
+            cid = a[1].strip()
+            cj = next((c for c in cases_json if c["caseId"] == cid), None)
+            discharge_queue.append({
+                "caseId": cid, "patientId": a[2].strip(),
+                "name": (cj["name"] if cj else a[2].strip()),
+                "bed": a[3].strip(), "ward": (cj["currentWard"] if cj else ""),
+                "attending": (cj["attendingDoctorName"] if cj else a[4].strip()) or a[4].strip(),
+                "admittedAt": a[5].strip(), "bill": (cj["bill"] if cj else 0),
+                "admissionStatus": a[7].strip(),
+                "email": patient_email(a[2].strip()),
+                "hasOpenRequirements": bool(cj and cj["openRequirements"]) if cj else False,
+            })
 
     active = sum(1 for a in adm if len(a) >= 8 and a[7].strip() in ("Admitted", "FitForDischarge"))
     sig = "|".join([
@@ -1599,16 +1693,22 @@ def build_state():
         str(sum(1 for a in adm if len(a) >= 8)),
         str(len(cases_json)),
         str(len(dd_rows)),
+        str(sum(1 for a in adm if len(a) >= 8 and a[7].strip() in ("Discharged", "Vacated"))),
+        str(len(billing)),
+        str(sum(_int(r[9]) for r in docs if len(r) >= 11)),
     ])
 
     return {
         "ok": True, "hospital": hospital_name(), "generatedAt": now_str(), "mode": "live",
         "signature": sig,
         "pollSeconds": max(2, _int(config_get("DashboardPollSeconds", "3"), 3)),
+        "adminRelease": config_flag("AdminManualRelease", True),
         "cases": cases_json,
         "requirements": reqs_json,
         "alerts": alerts,
         "doctors": doctors_json,
+        "resources": resources,
+        "dischargeQueue": discharge_queue,
         "availability": {
             "bedsByWard": beds_by_ward,
             "ventilatorsFree": sum(1 for v in vents if len(v) >= 2 and v[1].strip() == "Available"),
@@ -1644,6 +1744,418 @@ def force_assign_doctor(caseid):
                     "message": ("Consultant %s assigned to %s." % (info, caseid)) if ok
                     else ("No on-call consultant for %s yet." % caseid)}
     return {"ok": False, "message": "No open doctor requirement for %s." % caseid}
+
+
+# ============================================================================
+# Admin manual resource release  (revised spec, Feature 1 / 3 / 4)
+# ----------------------------------------------------------------------------
+# An authorised admin frees an occupied/reserved resource from the admin panel.
+# The state (.psv) is really mutated, the assignment/reservation is closed, the
+# release is audited with the admin's name, and monitor_tick() runs immediately
+# so the earliest valid pending request is served without a manual assignment.
+# ============================================================================
+RELEASABLE_KINDS = ("BED", "VENTILATOR", "DOCTOR", "BLOOD")
+
+
+def _reservation_release(caseid, rtype, resource_id):
+    hdr, rr = load_table("RESOURCE_RESERVATIONS.psv")
+    hit = False
+    for r in rr:
+        if len(r) >= 6 and r[5].strip() in ("Reserved", "Occupied") \
+                and r[2].strip().lower() == rtype.lower() \
+                and (not caseid or r[1].strip() == caseid) \
+                and (not resource_id or r[3].strip() == resource_id):
+            r[5] = "Released"
+            hit = True
+    if hit:
+        save_table("RESOURCE_RESERVATIONS.psv", hdr, rr)
+    return hit
+
+
+def release_resource(body):
+    kind = str(body.get("kind", "")).strip().upper()
+    rid = str(body.get("resourceId", "") or body.get("id", "")).strip()
+    admin = _san(body.get("admin", "")) or "Admin"
+    reason = _san(body.get("reason", "")) or "Manual release from admin panel"
+    force = bool(body.get("force", False))
+    add_units = _int(body.get("units", 0)) or _int(body.get("addUnits", 0))
+
+    if not config_flag("AdminManualRelease", True):
+        return {"ok": False, "message": "Admin manual release is disabled (AdminManualRelease=False)."}
+    if kind not in RELEASABLE_KINDS:
+        return {"ok": False, "message": "Unknown resource kind '%s' (use BED / VENTILATOR / DOCTOR / BLOOD)." % kind}
+    if not rid:
+        return {"ok": False, "message": "resourceId is required."}
+    now = now_str()
+    rel_case, label = "", "%s %s" % (kind.title(), rid)
+
+    if kind == "BED":
+        hdr, beds = load_table("BEDS.psv")
+        b = next((x for x in beds if x and x[0].strip() == rid), None)
+        if not b:
+            return {"ok": False, "message": "Bed %s not found." % rid}
+        prev = b[3].strip()
+        _, adm = load_table("ADMISSIONS.psv")
+        occ = next((a for a in adm if len(a) >= 8 and a[3].strip() == rid
+                    and a[7].strip() in ("Admitted", "FitForDischarge")), None)
+        if occ and not force:
+            return {"ok": False, "needsForce": True, "resourceId": rid, "kind": kind,
+                    "message": "Bed %s is occupied by %s (%s). Use 'Approve discharge' for that patient, "
+                               "or re-send with force=true to vacate it without discharge paperwork."
+                               % (rid, occ[1].strip(), occ[2].strip())}
+        vent_link = b[4].strip() if len(b) >= 5 else ""
+        for x in beds:
+            if x[0].strip() == rid and len(x) >= 6:
+                x[3] = "Available"
+                x[5] = now
+        save_table("BEDS.psv", hdr, beds)
+        if occ:
+            rel_case = occ[1].strip()
+            hdr_a, adm_rows = load_table("ADMISSIONS.psv")
+            for a in adm_rows:
+                if len(a) >= 9 and a[3].strip() == rid and a[7].strip() in ("Admitted", "FitForDischarge"):
+                    a[7] = "Vacated"
+                    a[8] = now
+            save_table("ADMISSIONS.psv", hdr_a, adm_rows)
+            hdr_c, cases = load_table("EMERGENCY_CASES.psv")
+            for c in cases:
+                if c and c[0].strip() == rel_case and len(c) >= 11:
+                    c[4] = "Released"
+                    c[10] = now
+            save_table("EMERGENCY_CASES.psv", hdr_c, cases)
+        _reservation_release(rel_case, "Bed", rid)
+        if vent_link:
+            hdr_v, vents = load_table("VENTILATORS.psv")
+            for v in vents:
+                if v and v[0].strip() == vent_link and len(v) >= 4 and v[1].strip() in ("Reserved", "Occupied"):
+                    v[1] = "Available"
+                    v[3] = now
+            save_table("VENTILATORS.psv", hdr_v, vents)
+        detail = "Bed %s released by %s (was %s)%s. %s" % (
+            rid, admin, prev, (" - vacated %s" % rel_case) if rel_case else "", reason)
+
+    elif kind == "VENTILATOR":
+        hdr, vents = load_table("VENTILATORS.psv")
+        v = next((x for x in vents if x and x[0].strip() == rid), None)
+        if not v:
+            return {"ok": False, "message": "Ventilator %s not found." % rid}
+        prev = v[1].strip()
+        for x in vents:
+            if x[0].strip() == rid and len(x) >= 4:
+                x[1] = "Available"
+                x[3] = now
+        save_table("VENTILATORS.psv", hdr, vents)
+        _reservation_release("", "Ventilator", rid)
+        detail = "Ventilator %s released by %s (was %s). %s" % (rid, admin, prev, reason)
+
+    elif kind == "DOCTOR":
+        hdr, docs = load_table("DOCTORS.psv")
+        d = next((x for x in docs if x and x[0].strip() == rid), None)
+        if not d:
+            return {"ok": False, "message": "Doctor %s not found." % rid}
+        prev = "%s, load %s/%s" % (d[6].strip(), d[9].strip(), d[10].strip())
+        for x in docs:
+            if x[0].strip() == rid and len(x) >= 11:
+                x[6] = "OnCall"
+                if _int(x[9]) >= _int(x[10]) > 0:
+                    x[9] = str(_int(x[10]) - 1)
+                elif _int(x[9]) > 0:
+                    x[9] = str(_int(x[9]) - 1)
+                if len(x) >= 14:
+                    x[13] = now
+        save_table("DOCTORS.psv", hdr, docs)
+        detail = "Doctor %s marked available by %s (was %s). %s" % (rid, admin, prev, reason)
+
+    else:  # BLOOD  - "release" = restock available units
+        add = add_units if add_units > 0 else 1
+        hdr, blood = load_table("BLOOD_INVENTORY.psv")
+        r = next((x for x in blood if x and x[0].strip() == rid), None)
+        if not r:
+            return {"ok": False, "message": "Blood group %s not found." % rid}
+        prev = _int(r[1])
+        for x in blood:
+            if x[0].strip() == rid and len(x) >= 4:
+                x[1] = str(_int(x[1]) + add)
+                x[3] = now
+        save_table("BLOOD_INVENTORY.psv", hdr, blood)
+        label = "Blood %s (+%d)" % (rid, add)
+        detail = "Blood %s: %d unit(s) added by %s (%d -> %d). %s" % (rid, add, admin, prev, prev + add, reason)
+
+    audit(rel_case, "ADMIN_RELEASE_RESOURCE", detail, performed_by=admin)
+
+    fulfilled = monitor_tick(auto_confirm=True)
+    if fulfilled:
+        audit(rel_case, "AUTOMATIC_RESOURCE_ALLOCATION",
+              "%d pending requirement(s) actioned automatically after release of %s." % (fulfilled, label),
+              performed_by="Bot")
+    return {
+        "ok": True, "kind": kind, "resourceId": rid, "autoAllocated": fulfilled,
+        "message": "%s released by %s.%s" % (
+            label, admin,
+            (" %d pending requirement(s) actioned automatically." % fulfilled) if fulfilled
+            else " No pending requirement was waiting on it."),
+    }
+
+
+# ============================================================================
+# Admin discharge approval + final bill + emailed bill  (Feature 8 / 9 / 10 / 11 / 13)
+# ----------------------------------------------------------------------------
+# Treatment-complete never auto-discharges. The admin approves, and only then is
+# the final bill built (from the EXISTING billing rows - no invented charges),
+# written, emailed (simulated), and the resources freed. An email failure is
+# logged and surfaced but never rolls back the discharge or the allocation.
+# ============================================================================
+def _sum_billing(caseid):
+    _, billing = load_table("BILLING.psv")
+    lines = [r for r in billing if len(r) >= 7 and r[1].strip() == caseid]
+    return lines, sum(_int(r[6]) for r in lines)
+
+
+def _write_bill_files(caseid, pid, name, adm, lines, subtotal, tax, total, pay_status, followup, att_id):
+    notif = os.path.join(ROOT, "Data", "Notifications")
+    os.makedirs(notif, exist_ok=True)
+    hosp = hospital_name()
+    _, docs = load_table("DOCTORS.psv")
+    att_name = next((d[1].strip() for d in docs if d and d[0].strip() == att_id), att_id or "-")
+    bed_id = adm[3].strip() if len(adm) >= 4 else "-"
+    admitted_at = adm[5].strip() if len(adm) >= 6 else "-"
+    _, beds = load_table("BEDS.psv")
+    ward = next((b[1].strip() for b in beds if b and b[0].strip() == bed_id), "")
+    now = now_str()
+    rows = [
+        "=" * 54, " FINAL HOSPITAL BILL", "=" * 54,
+        " Hospital         : %s" % hosp,
+        " Patient Name     : %s" % name,
+        " Patient ID       : %s" % pid,
+        " Admission ID     : ADM-%s" % caseid,
+        " Case Reference   : %s" % caseid,
+        " Admission Date   : %s" % admitted_at,
+        " Discharge Date   : %s" % now,
+        " Attending Doctor : %s" % att_name,
+        " Ward / Bed       : %s / %s" % (ward or "-", bed_id or "-"),
+        "-" * 54, " CHARGES", "-" * 54,
+    ]
+    for r in lines:
+        desc = (r[3].strip() if len(r) >= 4 and r[3].strip() else r[2].strip())
+        rows.append(" %-26s %3s x %8s = %10s" % (
+            desc[:26], (r[4].strip() if len(r) >= 5 else "1"),
+            (r[5].strip() if len(r) >= 6 else "0"), (r[6].strip() if len(r) >= 7 else "0")))
+    if not lines:
+        rows.append(" (no charges posted)")
+    rows += [
+        "-" * 54,
+        " Subtotal         : INR %s" % "{:,}".format(subtotal),
+        " Tax              : INR %s" % "{:,}".format(tax),
+        " Discount         : INR 0",
+        " TOTAL AMOUNT     : INR %s" % "{:,}".format(total),
+        " Payment Status   : %s" % pay_status,
+        " Follow-up Date   : %s" % followup,
+        "=" * 54,
+        " Administrative billing document. Clinical care and coding",
+        " decisions remain with authorised hospital staff.",
+        "=" * 54,
+    ]
+    text = "\n".join(rows)
+    with open(os.path.join(notif, "BILL_%s.txt" % caseid), "w", encoding="utf-8", newline="\n") as f:
+        f.write(text + "\n")
+    html = (
+        "<html><head><meta charset='utf-8'><style>body{font-family:Segoe UI,Arial,sans-serif;"
+        "background:#f4f6f9;padding:20px}.card{background:#fff;border-radius:8px;padding:24px;max-width:760px;"
+        "margin:auto;box-shadow:0 2px 8px rgba(0,0,0,.1)}.hdr{background:#004687;color:#fff;padding:16px;"
+        "border-radius:8px 8px 0 0;margin:-24px -24px 16px}pre{background:#f8f9fa;padding:14px;"
+        "border-left:4px solid #004687;white-space:pre-wrap;font-size:13px}.ftr{margin-top:16px;font-size:11px;"
+        "color:#6c757d;border-top:1px solid #dee2e6;padding-top:10px}</style></head><body><div class='card'>"
+        "<div class='hdr'><h2 style='margin:0'>Discharge Bill</h2><p style='margin:4px 0 0'>%s | %s</p></div>"
+        "<pre>%s</pre><div class='ftr'>Automated administrative billing document from %s RPA.</div>"
+        "</div></body></html>" % (caseid, now, text.replace("&", "&amp;").replace("<", "&lt;"), hosp))
+    html_path = os.path.join(notif, "BILL_%s.html" % caseid)
+    with open(html_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(html)
+    return html_path
+
+
+def _send_bill_email(caseid, pid, name, email, total):
+    """Simulated send: drop an EMAIL_<case>_bill_<ts>.html envelope in EmailOutputFolder.
+    Raises on any condition that a real send would fail on, so the caller logs
+    EMAIL_SEND_FAILED without unwinding the discharge."""
+    if not email:
+        raise RuntimeError("no email address on file for patient %s" % pid)
+    if not config_flag("EmailSimulated", True):
+        raise RuntimeError("real SMTP delivery is not configured (EmailSimulated=False)")
+    folder = os.path.join(ROOT, "Data", "Notifications")
+    os.makedirs(folder, exist_ok=True)
+    subject = "%s - Patient %s" % (config_get("BillingEmailSubjectPrefix", "Hospital Discharge Bill"), pid)
+    bill_text = read_text(os.path.join(folder, "BILL_%s.txt" % caseid)).replace("&", "&amp;").replace("<", "&lt;")
+    esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    envelope = (
+        "<html><body style='font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;padding:20px'>"
+        "<div style='background:#fff;max-width:760px;margin:auto;border-radius:8px;padding:24px'>"
+        "<p><b>To:</b> %s<br><b>From:</b> %s<br><b>Subject:</b> %s</p>"
+        "<p>Dear %s,</p>"
+        "<p>Your treatment/admission has been completed and your discharge has been approved. "
+        "Please find your final hospital bill below.</p>"
+        "<p><b>Patient ID:</b> %s<br><b>Admission ID:</b> ADM-%s<br><b>Total Amount:</b> INR %s</p>"
+        "<pre style='background:#f8f9fa;padding:14px;border-left:4px solid #004687;white-space:pre-wrap;"
+        "font-size:13px'>%s</pre>"
+        "<p>Regards,<br>Hospital Administration</p></div></body></html>"
+        % (esc(email), esc(config_get("SMTPFrom", "rpa-bot@hospital.local")), esc(subject), esc(name),
+           pid, caseid, "{:,}".format(total), bill_text))
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = os.path.join(folder, "EMAIL_%s_bill_%s.html" % (caseid, stamp))
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write(envelope)
+    return out
+
+
+def _release_after_discharge(caseid, pid, bed_id, att_id):
+    now = now_str()
+    freed = []
+    hdr_b, beds = load_table("BEDS.psv")
+    for b in beds:
+        if b and b[0].strip() == bed_id and len(b) >= 6:
+            b[3] = "Available"
+            b[5] = now
+            freed.append("bed " + bed_id)
+    save_table("BEDS.psv", hdr_b, beds)
+
+    _, rr = load_table("RESOURCE_RESERVATIONS.psv")
+    vent_ids = [r[3].strip() for r in rr if len(r) >= 6 and r[1].strip() == caseid
+                and r[2].strip() == "Ventilator" and r[5].strip() in ("Reserved", "Occupied")]
+    if vent_ids:
+        hdr_v, vents = load_table("VENTILATORS.psv")
+        for v in vents:
+            if v and v[0].strip() in vent_ids and len(v) >= 4:
+                v[1] = "Available"
+                v[3] = now
+                freed.append("ventilator " + v[0].strip())
+        save_table("VENTILATORS.psv", hdr_v, vents)
+
+    hdr_da, da = load_table("DOCTOR_ASSIGNMENTS.psv")
+    rel_docs = []
+    for r in da:
+        if len(r) >= 7 and r[1].strip() == caseid and r[6].strip() == "Assigned":
+            r[6] = "Released"
+            rel_docs.append(r[2].strip())
+    if rel_docs:
+        save_table("DOCTOR_ASSIGNMENTS.psv", hdr_da, da)
+    to_decrement = rel_docs or ([att_id] if att_id else [])
+    if to_decrement:
+        hdr_dc, docs = load_table("DOCTORS.psv")
+        for x in docs:
+            if x and x[0].strip() in to_decrement and len(x) >= 11:
+                x[9] = str(max(0, _int(x[9]) - 1))
+                if len(x) >= 14:
+                    x[13] = now
+        save_table("DOCTORS.psv", hdr_dc, docs)
+        freed.append("doctor load -%d" % len(to_decrement))
+
+    hdr_rr, rr2 = load_table("RESOURCE_RESERVATIONS.psv")
+    for r in rr2:
+        if len(r) >= 6 and r[1].strip() == caseid and r[5].strip() in ("Reserved", "Occupied"):
+            r[5] = "Released"
+    save_table("RESOURCE_RESERVATIONS.psv", hdr_rr, rr2)
+    return freed
+
+
+def approve_discharge(body):
+    caseid = str(body.get("caseId", "")).strip()
+    admin = _san(body.get("admin", "")) or "Admin"
+    if not caseid:
+        return {"ok": False, "message": "caseId is required."}
+    hdr_a, adm_rows, a = _adm_row_for(caseid)
+    if not a:
+        return {"ok": False, "message": "No admission found for %s." % caseid}
+    if a[7].strip() not in ("Admitted", "FitForDischarge"):
+        return {"ok": False, "message": "%s is not an active admission (status: %s)." % (caseid, a[7].strip())}
+
+    pid, bed_id, att_id, admitted_at = a[2].strip(), a[3].strip(), a[4].strip(), a[5].strip()
+    _, pats = load_table("PATIENTS.psv")
+    prow = next((r for r in pats if r and r[0].strip() == pid), None)
+    name = prow[1].strip() if prow and len(prow) >= 2 else pid
+    now = now_str()
+
+    audit(caseid, "DISCHARGE_APPROVED",
+          "Discharge approved by %s for %s (%s); admitted %s, bed %s." % (admin, name, pid, admitted_at, bed_id),
+          performed_by=admin)
+
+    lines, subtotal = _sum_billing(caseid)
+    try:
+        tax_pct = float(config_get("BillingTaxPercent", "0") or "0")
+    except ValueError:
+        tax_pct = 0.0
+    tax = int(round(subtotal * tax_pct / 100.0))
+    total = subtotal + tax
+
+    _, docs_tbl = load_table("DOCUMENTS.psv")
+    insured = any(len(r) >= 5 and r[1].strip() == pid and r[2].strip() == "Insurance"
+                  and r[4].strip() == "Present" for r in docs_tbl)
+    pay_status = "InsurancePending" if insured else "Invoiced"
+    email = patient_email(pid)
+    followup = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+
+    bill_path = _write_bill_files(caseid, pid, name, a, lines, subtotal, tax, total, pay_status, followup, att_id)
+    audit(caseid, "BILL_GENERATED",
+          "Final bill: subtotal %d + tax %d = %d INR across %d line item(s); payment %s."
+          % (subtotal, tax, total, len(lines), pay_status), performed_by="Bot")
+
+    email_ok, email_note, email_file = True, "", ""
+    try:
+        email_file = _send_bill_email(caseid, pid, name, email, total)
+        audit(caseid, "BILL_EMAIL_SENT", "Final bill emailed to %s." % email, performed_by="Bot")
+    except Exception as e:  # noqa: BLE001 - email failure must not roll back the discharge
+        email_ok, email_note = False, str(e)
+        audit(caseid, "EMAIL_SEND_FAILED",
+              "Bill NOT emailed (%s). Discharge, billing and resource release stand; retry from the admin panel."
+              % e, performed_by="Bot")
+
+    freed = _release_after_discharge(caseid, pid, bed_id, att_id)
+    audit(caseid, "RESOURCE_RELEASED_AFTER_DISCHARGE",
+          "Freed on discharge of %s: %s." % (caseid, ", ".join(freed) or "nothing"), performed_by="Bot")
+
+    hdr_d, drows = load_table("DISCHARGES.psv")
+    if not hdr_d:
+        hdr_d = DB_SCHEMA["DISCHARGES"]
+    drows = [r for r in drows if not (r and r[0].strip() == "DIS-" + caseid)]
+    drows.append(["DIS-" + caseid, caseid, pid, admin, now, str(total), pay_status, followup,
+                  os.path.relpath(bill_path, ROOT).replace(os.sep, "/"), now])
+    save_table("DISCHARGES.psv", hdr_d, drows)
+
+    for r in adm_rows:
+        if r[1].strip() == caseid and len(r) >= 9:
+            r[7] = "Discharged"
+            r[8] = now
+    save_table("ADMISSIONS.psv", hdr_a, adm_rows)
+
+    hdr_c, cases = load_table("EMERGENCY_CASES.psv")
+    for r in cases:
+        if r and r[0].strip() == caseid and len(r) >= 11:
+            r[2] = "DISCHARGED"
+            r[4] = "Released"
+            r[8] = "None"
+            r[10] = now
+    save_table("EMERGENCY_CASES.psv", hdr_c, cases)
+
+    for r in open_requirements():
+        if r[1].strip() == caseid:
+            set_requirement_status(r[0].strip(), "CANCELLED")
+
+    fulfilled = monitor_tick(auto_confirm=True)
+    if fulfilled:
+        audit(caseid, "AUTOMATIC_RESOURCE_ALLOCATION",
+              "%d pending requirement(s) actioned automatically after %s vacated bed %s."
+              % (fulfilled, caseid, bed_id), performed_by="Bot")
+
+    return {
+        "ok": True, "caseId": caseid, "patientId": pid,
+        "subtotal": subtotal, "tax": tax, "total": total, "paymentStatus": pay_status,
+        "emailSent": email_ok, "emailAddress": email, "emailError": "" if email_ok else email_note,
+        "billPath": os.path.relpath(bill_path, ROOT).replace(os.sep, "/"),
+        "autoAllocated": fulfilled,
+        "message": "Discharge approved for %s. Final bill INR %s %s.%s" % (
+            caseid, "{:,}".format(total),
+            ("emailed to " + email) if email_ok else ("NOT emailed (" + email_note + ")"),
+            (" %d pending requirement(s) actioned." % fulfilled) if fulfilled else ""),
+    }
 
 
 # ---------------------------------------------------------------- HTTP
@@ -1701,6 +2213,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             elif path == "/api/assign-doctor":
                 with PROCESS_LOCK:
                     payload = force_assign_doctor(body.get("caseId", ""))
+                self._send(200, json.dumps(payload))
+            elif path == "/api/release":
+                with PROCESS_LOCK:
+                    payload = release_resource(body)
+                self._send(200, json.dumps(payload))
+            elif path == "/api/approve-discharge":
+                with PROCESS_LOCK:
+                    payload = approve_discharge(body)
                 self._send(200, json.dumps(payload))
             else:
                 self._send(404, json.dumps({"ok": False, "error": "not found"}))

@@ -122,6 +122,10 @@
       FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENT_DOCUMENT_DATA.psv&quot;)]"
       Text="RecordId|PatientId|CaseId|DocumentType|Field|Value|ExtractedAt" />
 
+    <ui:WriteTextFile DisplayName="Reset PATIENT_CONTACT.psv"
+      FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENT_CONTACT.psv&quot;)]"
+      Text="PatientId|CaseId|EmailAddress|Phone|CapturedAt" />
+
     <Assign DisplayName="Seed: DEPARTMENTS">
       <Assign.To><OutArgument x:TypeArguments="x:String">[v_Seed]</OutArgument></Assign.To>
       <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {"DepartmentId|Name|Type|FloorWard|HeadDoctorId|LastUpdated", "DEPT-ICU|ICU|Critical|Floor 3 - Critical Care Complex|DR-001|2026-09-06 10:44:11", "DEPT-GEN|General|Medical|Floor 1 - General Medicine Ward|DR-020|2026-09-06 10:44:11", "DEPT-CARD|Cardiology|Medical|Floor 2 - Cardiac Care Wing|DR-004|2026-09-06 10:44:11", "DEPT-CTVS|Cardiothoracic Surgery|Surgical|Floor 4 - OT Complex|DR-006|2026-09-06 10:44:11", "DEPT-NEURO|Neurology|Medical|Floor 5 - Neurosciences Wing|DR-008|2026-09-06 10:44:11", "DEPT-NSURG|Neurosurgery|Surgical|Floor 4 - OT Complex|DR-010|2026-09-06 10:44:11", "DEPT-ORTHO|Orthopaedics|Surgical|Floor 2 - Orthopaedic Wing|DR-012|2026-09-06 10:44:11", "DEPT-TRAUMA|Trauma &amp; Emergency Surgery|Surgical|Ground - Emergency Block|DR-014|2026-09-06 10:44:11", "DEPT-GSURG|General Surgery|Surgical|Floor 3 - Surgical Wing|DR-016|2026-09-06 10:44:11", "DEPT-NEPHRO|Nephrology|Medical|Floor 5 - Renal Unit|DR-018|2026-09-06 10:44:11", "DEPT-PULMO|Pulmonology|Medical|Floor 3 - Respiratory Unit|DR-019|2026-09-06 10:44:11", "DEPT-ANAES|Anaesthesiology|Surgical Support|Floor 4 - OT Complex|DR-022|2026-09-06 10:44:11"})]</InArgument></Assign.Value>
@@ -144,6 +148,6 @@
       FileName="[System.IO.Path.Combine(v_Db, &quot;OPERATING_THEATRES.psv&quot;)]" Text="[v_Seed]" />
 
     <ui:LogMessage DisplayName="Log: reset done" Level="Info"
-      Message="[&quot;[ResetDatastore] Datastore restored: 9 ledgers cleared, BEDS/VENTILATORS/BLOOD_INVENTORY/DEPARTMENTS/DOCTORS/OPERATING_THEATRES reseeded.&quot;]" />
+      Message="[&quot;[ResetDatastore] Datastore restored: ledgers cleared (incl. PENDING_REQUIREMENTS, PATIENT_DOCUMENT_DATA, PATIENT_CONTACT), BEDS/VENTILATORS/BLOOD_INVENTORY/DEPARTMENTS/DOCTORS/OPERATING_THEATRES reseeded.&quot;]" />
   </Sequence>
 </Activity>

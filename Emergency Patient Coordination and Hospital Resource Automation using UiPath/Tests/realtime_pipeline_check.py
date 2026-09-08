@@ -17,9 +17,28 @@ Exit code 0 = all checks passed.
 import os
 import sys
 import json
+import stat
+import time
 import shutil
 import base64
 import importlib
+
+
+def _rmtree(path):
+    """shutil.rmtree that survives Windows read-only files / transient locks."""
+    def _onerror(func, p, _exc):
+        try:
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except OSError:
+            pass
+    for attempt in range(5):
+        if not os.path.isdir(path):
+            return
+        shutil.rmtree(path, onerror=_onerror)
+        if not os.path.isdir(path):
+            return
+        time.sleep(0.3)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
@@ -42,7 +61,7 @@ def check(name, ok, detail=""):
 # ---------------------------------------------------------------- snapshot / restore
 def _snap():
     if os.path.isdir(BK):
-        shutil.rmtree(BK)
+        _rmtree(BK)
     os.makedirs(BK)
     shutil.copytree(DB, os.path.join(BK, "db"))
     shutil.copytree(NOTIF, os.path.join(BK, "Notifications"))
@@ -54,7 +73,7 @@ def _snap():
 def _restore_dir(src, dst):
     for n in os.listdir(dst):
         p = os.path.join(dst, n)
-        shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+        _rmtree(p) if os.path.isdir(p) else os.remove(p)
     for n in os.listdir(src):
         s, d = os.path.join(src, n), os.path.join(dst, n)
         shutil.copytree(s, d) if os.path.isdir(s) else shutil.copy2(s, d)
@@ -66,7 +85,7 @@ def _restore():
     shutil.copy2(os.path.join(BK, "PatientInput.psv"), INPUT)
     if os.path.isdir(os.path.join(BK, "Patients")):
         _restore_dir(os.path.join(BK, "Patients"), PATIENTS)
-    shutil.rmtree(BK, ignore_errors=True)
+    _rmtree(BK)
 
 
 def _w(name, lines):
