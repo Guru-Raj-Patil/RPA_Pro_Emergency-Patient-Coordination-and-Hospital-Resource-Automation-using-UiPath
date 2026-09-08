@@ -137,9 +137,9 @@
     </TryCatch>
 
     <ui:ReadTextFile DisplayName="Read BILLING.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]" Content="[v_BillRaw]" />
-    <Assign DisplayName="Subtotal (existing charges only)">
+    <Assign DisplayName="Subtotal (existing charges only, tolerant parse)">
       <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Subtotal]</OutArgument></Assign.To>
-      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_BillRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 7 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) CInt(a(6).Trim())).DefaultIfEmpty(0).Sum()]</InArgument></Assign.Value>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_BillRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 7 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) If(Microsoft.VisualBasic.Information.IsNumeric(a(6).Trim()), CInt(Math.Round(CDbl(a(6).Trim()))), 0)).DefaultIfEmpty(0).Sum()]</InArgument></Assign.Value>
     </Assign>
     <Assign DisplayName="Line items">
       <Assign.To><OutArgument x:TypeArguments="x:String">[v_LineItems]</OutArgument></Assign.To>

@@ -15,6 +15,7 @@
     <x:Property Name="in_AdminName" Type="InArgument(x:String)" />
     <x:Property Name="in_Reason" Type="InArgument(x:String)" />
     <x:Property Name="in_AddUnits" Type="InArgument(x:Int32)" />
+    <x:Property Name="in_Force" Type="InArgument(x:Boolean)" />
     <x:Property Name="out_Message" Type="OutArgument(x:String)" />
     <x:Property Name="out_AutoAllocated" Type="OutArgument(x:Int32)" />
   </x:Members>
@@ -53,6 +54,9 @@
       <Variable x:TypeArguments="x:String" Name="v_Prev" />
       <Variable x:TypeArguments="x:Boolean" Name="v_Found" />
       <Variable x:TypeArguments="x:String" Name="v_OccCase" />
+      <Variable x:TypeArguments="x:String" Name="v_OccPid" />
+      <Variable x:TypeArguments="x:String" Name="v_OccDept" />
+      <Variable x:TypeArguments="x:String" Name="v_VentLink" />
       <Variable x:TypeArguments="x:Int32" Name="v_Fulfilled" />
       <Variable x:TypeArguments="x:String" Name="v_Detail" />
     </Sequence.Variables>
@@ -145,11 +149,37 @@
                   <Assign.To><OutArgument x:TypeArguments="x:String">[v_Prev]</OutArgument></Assign.To>
                   <Assign.Value><InArgument x:TypeArguments="x:String">[v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 4 AndAlso a(0).Trim() = v_Id).Select(Function(a) a(3).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
                 </Assign>
+                <Assign DisplayName="Linked ventilator (bed col 4)">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_VentLink]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 5 AndAlso a(0).Trim() = v_Id).Select(Function(a) a(4).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+                </Assign>
                 <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv (occupant)" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_Detail]" />
                 <Assign DisplayName="Occupying case (if any)">
                   <Assign.To><OutArgument x:TypeArguments="x:String">[v_OccCase]</OutArgument></Assign.To>
                   <Assign.Value><InArgument x:TypeArguments="x:String">[v_Detail.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(3).Trim() = v_Id AndAlso (a(7).Trim() = "Admitted" OrElse a(7).Trim() = "FitForDischarge")).Select(Function(a) a(1).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
                 </Assign>
+                <Assign DisplayName="Occupant PatientId">
+                  <Assign.To><OutArgument x:TypeArguments="x:String">[v_OccPid]</OutArgument></Assign.To>
+                  <Assign.Value><InArgument x:TypeArguments="x:String">[v_Detail.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(3).Trim() = v_Id AndAlso (a(7).Trim() = "Admitted" OrElse a(7).Trim() = "FitForDischarge")).Select(Function(a) a(2).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value>
+                </Assign>
+                <If DisplayName="Occupied and not forced? refuse (BE-012)" Condition="[v_OccCase &lt;&gt; &quot;&quot; AndAlso Not in_Force]">
+                  <If.Then>
+                    <Throw DisplayName="Throw BE-012 bed occupied"
+                      Exception="[New System.Exception(&quot;BE-012: Bed &quot; &amp; v_Id &amp; &quot; is occupied by &quot; &amp; v_OccCase &amp; &quot; (&quot; &amp; v_OccPid &amp; &quot;). Approve that patient's discharge, or re-run ReleaseResource with in_Force=True to vacate it without discharge paperwork (the patient is then re-queued for a bed and their billing must still be finalised).&quot;)]" />
+                  </If.Then>
+                </If>
+                <If DisplayName="Forced eviction - read the occupant's department" Condition="[v_OccCase &lt;&gt; &quot;&quot;]">
+                  <If.Then>
+                    <Sequence>
+                      <ui:ReadTextFile DisplayName="Read PATIENTS.psv (occupant dept)" FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENTS.psv&quot;)]" Content="[v_Buf]" />
+                      <Assign DisplayName="Occupant RequiredDepartment">
+                        <Assign.To><OutArgument x:TypeArguments="x:String">[v_OccDept]</OutArgument></Assign.To>
+                        <Assign.Value><InArgument x:TypeArguments="x:String">[v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 6 AndAlso a(0).Trim() = v_OccPid).Select(Function(a) a(5).Trim()).DefaultIfEmpty("General").First()]</InArgument></Assign.Value>
+                      </Assign>
+                      <ui:ReadTextFile DisplayName="Re-read BEDS.psv (post PATIENTS read)" FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]" Content="[v_Buf]" />
+                    </Sequence>
+                  </If.Then>
+                </If>
                 <Assign DisplayName="BEDS: bed -&gt; Available">
                   <Assign.To><OutArgument x:TypeArguments="x:String">[v_Buf]</OutArgument></Assign.To>
                   <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(v_Id &amp; "|"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), "Available", l.Trim().Split("|"c)(4), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
@@ -160,17 +190,49 @@
                   <If.Then>
                     <Sequence>
                       <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv (vacate)" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_Buf]" />
-                      <Assign DisplayName="ADMISSIONS: Status -&gt; Vacated">
+                      <Assign DisplayName="ADMISSIONS: Status -&gt; Vacated (keep DischargeReadyAt)">
                         <Assign.To><OutArgument x:TypeArguments="x:String">[v_Buf]</OutArgument></Assign.To>
-                        <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 9 AndAlso l.Trim().Split("|"c)(3).Trim() = v_Id AndAlso (l.Trim().Split("|"c)(7).Trim() = "Admitted" OrElse l.Trim().Split("|"c)(7).Trim() = "FitForDischarge"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), l.Trim().Split("|"c)(3), l.Trim().Split("|"c)(4), l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), "Vacated", v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                        <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 9 AndAlso l.Trim().Split("|"c)(3).Trim() = v_Id AndAlso (l.Trim().Split("|"c)(7).Trim() = "Admitted" OrElse l.Trim().Split("|"c)(7).Trim() = "FitForDischarge"), String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), l.Trim().Split("|"c)(3), l.Trim().Split("|"c)(4), l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), "Vacated", l.Trim().Split("|"c)(8)}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
                       </Assign>
                       <ui:WriteTextFile DisplayName="Write ADMISSIONS.psv (vacate)" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Text="[v_Buf]" />
                       <ui:ReadTextFile DisplayName="Read EMERGENCY_CASES.psv (release)" FileName="[System.IO.Path.Combine(v_Db, &quot;EMERGENCY_CASES.psv&quot;)]" Content="[v_Buf]" />
-                      <Assign DisplayName="EMERGENCY_CASES: BedStatus -&gt; Released">
+                      <Assign DisplayName="EMERGENCY_CASES: CaseStatus FORCE_VACATED, BedStatus Released">
                         <Assign.To><OutArgument x:TypeArguments="x:String">[v_Buf]</OutArgument></Assign.To>
-                        <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 11 AndAlso l.Trim().Split("|"c)(0).Trim() = v_OccCase, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), l.Trim().Split("|"c)(2), l.Trim().Split("|"c)(3), "Released", l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), l.Trim().Split("|"c)(7), l.Trim().Split("|"c)(8), l.Trim().Split("|"c)(9), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                        <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().Split("|"c).Length &gt;= 11 AndAlso l.Trim().Split("|"c)(0).Trim() = v_OccCase, String.Join("|", New String() {l.Trim().Split("|"c)(0), l.Trim().Split("|"c)(1), "FORCE_VACATED", l.Trim().Split("|"c)(3), "Released", l.Trim().Split("|"c)(5), l.Trim().Split("|"c)(6), l.Trim().Split("|"c)(7), "Bed force-freed by admin - approve discharge to finalise billing", l.Trim().Split("|"c)(9), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
                       </Assign>
                       <ui:WriteTextFile DisplayName="Write EMERGENCY_CASES.psv (release)" FileName="[System.IO.Path.Combine(v_Db, &quot;EMERGENCY_CASES.psv&quot;)]" Text="[v_Buf]" />
+                      <If DisplayName="Free the bed's linked ventilator?" Condition="[v_VentLink &lt;&gt; &quot;&quot;]">
+                        <If.Then>
+                          <Sequence>
+                            <ui:ReadTextFile DisplayName="Read VENTILATORS.psv (bed link)" FileName="[System.IO.Path.Combine(v_Db, &quot;VENTILATORS.psv&quot;)]" Content="[v_Buf]" />
+                            <Assign DisplayName="Linked ventilator -&gt; Available">
+                              <Assign.To><OutArgument x:TypeArguments="x:String">[v_Buf]</OutArgument></Assign.To>
+                              <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_Buf.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) If(l.Trim().StartsWith(v_VentLink &amp; "|") AndAlso (l.Trim().Split("|"c)(1).Trim() = "Reserved" OrElse l.Trim().Split("|"c)(1).Trim() = "Occupied"), String.Join("|", New String() {l.Trim().Split("|"c)(0), "Available", l.Trim().Split("|"c)(2), v_Now}), l.Trim())).Where(Function(x) x &lt;&gt; ""))]</InArgument></Assign.Value>
+                            </Assign>
+                            <ui:WriteTextFile DisplayName="Write VENTILATORS.psv (bed link)" FileName="[System.IO.Path.Combine(v_Db, &quot;VENTILATORS.psv&quot;)]" Text="[v_Buf]" />
+                          </Sequence>
+                        </If.Then>
+                      </If>
+                      <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="RegisterRequirement: replacement bed for evicted patient" UnSafe="False" WorkflowFileName="Workflows\RegisterRequirement.xaml">
+                        <ui:InvokeWorkflowFile.Arguments>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_OccCase]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_OccPid]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_Type">[If(v_OccDept.Trim().ToUpper() = "ICU", "ICU_BED", "BED")]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_RequestedValue">[If(String.IsNullOrEmpty(v_OccDept), "General", v_OccDept)]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_CurrentFallback">[""]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_Priority">["HIGH"]</InArgument>
+                        </ui:InvokeWorkflowFile.Arguments>
+                      </ui:InvokeWorkflowFile>
+                      <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: FORCE_VACATED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                        <ui:InvokeWorkflowFile.Arguments>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_OccCase]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_Action">["FORCE_VACATED"]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Bed " &amp; v_Id &amp; " force-freed by " &amp; v_Admin &amp; " while occupied by " &amp; v_OccCase &amp; " (" &amp; v_OccPid &amp; "). Linked ventilator released; a fresh " &amp; v_OccDept &amp; " bed requirement opened; billing must still be finalised via 'Approve discharge'."]</InArgument>
+                          <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">[v_Admin]</InArgument>
+                        </ui:InvokeWorkflowFile.Arguments>
+                      </ui:InvokeWorkflowFile>
                     </Sequence>
                   </If.Then>
                 </If>

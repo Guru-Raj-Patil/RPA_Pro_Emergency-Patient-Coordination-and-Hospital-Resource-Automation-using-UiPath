@@ -123,7 +123,7 @@
 
     <Assign DisplayName="Clinically-certified admissions">
       <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Cands]</OutArgument></Assign.To>
-      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 9 AndAlso l.Split(&quot;|&quot;c)(7).Trim() = &quot;FitForDischarge&quot;).ToList()]</InArgument></Assign.Value>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 9 AndAlso (l.Split(&quot;|&quot;c)(7).Trim() = &quot;FitForDischarge&quot; OrElse l.Split(&quot;|&quot;c)(7).Trim() = &quot;Vacated&quot;) AndAlso Not System.IO.File.Exists(System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVED_&quot; &amp; l.Split(&quot;|&quot;c)(1).Trim() &amp; &quot;.txt&quot;))).ToList()]</InArgument></Assign.Value>
     </Assign>
     <Assign DisplayName="Reset counters">
       <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ApprovedCount]</OutArgument></Assign.To>
@@ -164,9 +164,6 @@
                         <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">[v_Admin]</InArgument>
                       </ui:InvokeWorkflowFile.Arguments>
                     </ui:InvokeWorkflowFile>
-                    <ui:WriteTextFile DisplayName="Write DISCHARGE_APPROVED marker"
-                      FileName="[System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVED_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
-                      Text="[&quot;DISCHARGE APPROVED (administrative)&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Approved by: &quot; &amp; v_Admin &amp; &quot;   At: &quot; &amp; v_Now &amp; Environment.NewLine &amp; &quot;Clinical fitness was certified separately by the attending doctor (HUMAN GATE 2). This gate is the administrative sign-off that releases billing and resources.&quot;]" />
                     <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="EmailFinalBill" UnSafe="False" WorkflowFileName="Workflows\EmailFinalBill.xaml">
                       <ui:InvokeWorkflowFile.Arguments>
                         <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
@@ -180,6 +177,9 @@
                       <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ApprovedCount]</OutArgument></Assign.To>
                       <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_ApprovedCount + 1]</InArgument></Assign.Value>
                     </Assign>
+                    <ui:WriteTextFile DisplayName="Write DISCHARGE_APPROVED marker (only after the bill exists)"
+                      FileName="[System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVED_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                      Text="[&quot;DISCHARGE APPROVED (administrative)&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Approved by: &quot; &amp; v_Admin &amp; &quot;   At: &quot; &amp; v_Now &amp; Environment.NewLine &amp; &quot;Bill INR &quot; &amp; v_Total.ToString() &amp; &quot; generated; email &quot; &amp; If(v_EmailSent, &quot;sent&quot;, &quot;deferred (retry)&quot;) &amp; &quot;.&quot; &amp; Environment.NewLine &amp; &quot;Clinical fitness was certified separately by the attending doctor (HUMAN GATE 2). This gate is the administrative sign-off that releases billing and resources. This marker is written ONLY once the bill has been produced, so a bill failure re-tries cleanly on the next run.&quot;]" />
                     <ui:LogMessage DisplayName="Log: approved" Level="Info"
                       Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; approved by &quot; &amp; v_Admin &amp; &quot; - bill INR &quot; &amp; v_Total.ToString() &amp; &quot;, email &quot; &amp; If(v_EmailSent, &quot;sent&quot;, &quot;NOT sent (logged)&quot;) &amp; &quot;.&quot;]" />
                   </Sequence>
@@ -209,8 +209,19 @@
             <Catch x:TypeArguments="s:Exception">
               <ActivityAction x:TypeArguments="s:Exception">
                 <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_R" /></ActivityAction.Argument>
-                <ui:LogMessage DisplayName="Log: review failed" Level="Warn"
-                  Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; skipped - &quot; &amp; ex_R.Message]" />
+                <Sequence>
+                  <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DISCHARGE_STEP_FAILED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                    <ui:InvokeWorkflowFile.Arguments>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DISCHARGE_STEP_FAILED"]</InArgument>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Discharge approval for " &amp; v_CaseId &amp; " could not complete: " &amp; ex_R.GetType().Name &amp; ": " &amp; ex_R.Message &amp; ". No DISCHARGE_APPROVED marker was written; the case is unchanged and will be retried."]</InArgument>
+                      <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                    </ui:InvokeWorkflowFile.Arguments>
+                  </ui:InvokeWorkflowFile>
+                  <ui:LogMessage DisplayName="Log: review failed" Level="Warn"
+                    Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; NOT discharged - &quot; &amp; ex_R.Message &amp; &quot; (audited DISCHARGE_STEP_FAILED, will retry).&quot;]" />
+                </Sequence>
               </ActivityAction>
             </Catch>
           </TryCatch.Catches>

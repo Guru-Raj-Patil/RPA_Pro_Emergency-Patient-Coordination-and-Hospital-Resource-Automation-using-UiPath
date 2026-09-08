@@ -34,6 +34,7 @@
     <Sequence.Variables>
       <Variable x:TypeArguments="x:String" Name="v_Db" />
       <Variable x:TypeArguments="x:String" Name="v_Seed" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
     </Sequence.Variables>
 
     <Assign DisplayName="Resolve db folder">
@@ -147,7 +148,38 @@
     <ui:WriteTextFile DisplayName="Reset OPERATING_THEATRES.psv"
       FileName="[System.IO.Path.Combine(v_Db, &quot;OPERATING_THEATRES.psv&quot;)]" Text="[v_Seed]" />
 
+    <Assign DisplayName="Resolve Notifications folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(System.IO.Directory.GetParent(v_Db).FullName, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <TryCatch DisplayName="Clear stale per-case notification markers (non-fatal)">
+      <TryCatch.Try>
+        <If DisplayName="Notifications folder exists?" Condition="[System.IO.Directory.Exists(v_Notif)]">
+          <If.Then>
+            <ForEach x:TypeArguments="x:String" DisplayName="Delete each stale marker"
+              Values="[System.IO.Directory.GetFiles(v_Notif).Where(Function(f) (New String() {&quot;DISCHARGE_APPROVED_&quot;, &quot;APPROVE_DISCHARGE_&quot;, &quot;DISCHARGE_APPROVAL_REQUEST_&quot;, &quot;DISCHARGE_CLEARANCE_&quot;, &quot;CLINICAL_CLEARANCE_&quot;, &quot;CERTIFY_&quot;, &quot;TRANSFER_REQUEST_&quot;, &quot;TRANSFER_CONFIRM_&quot;, &quot;EMAIL_RETRY_&quot;, &quot;BILL_&quot;, &quot;EMAIL_&quot;, &quot;APPROVAL_ER&quot;, &quot;EXCEPTION_ER&quot;, &quot;Notification_ER&quot;, &quot;DISCHARGE_SUMMARY_&quot;, &quot;CLAIM_&quot;, &quot;FOLLOWUP_&quot;, &quot;CLOSED_&quot;}).Any(Function(p) System.IO.Path.GetFileName(f).StartsWith(p))).ToArray()]">
+              <ForEach.Body>
+                <ActivityAction x:TypeArguments="x:String">
+                  <ActivityAction.Argument><DelegateInArgument x:TypeArguments="x:String" Name="v_MarkerFile" /></ActivityAction.Argument>
+                  <ui:DeleteFile DisplayName="Delete marker" ContinueOnError="True" Path="[v_MarkerFile]" />
+                </ActivityAction>
+              </ForEach.Body>
+            </ForEach>
+          </If.Then>
+        </If>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_N" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: marker cleanup skipped" Level="Warn"
+              Message="[&quot;[ResetDatastore] Stale-marker cleanup skipped: &quot; &amp; ex_N.Message]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
     <ui:LogMessage DisplayName="Log: reset done" Level="Info"
-      Message="[&quot;[ResetDatastore] Datastore restored: ledgers cleared (incl. PENDING_REQUIREMENTS, PATIENT_DOCUMENT_DATA, PATIENT_CONTACT), BEDS/VENTILATORS/BLOOD_INVENTORY/DEPARTMENTS/DOCTORS/OPERATING_THEATRES reseeded.&quot;]" />
+      Message="[&quot;[ResetDatastore] Datastore restored: ledgers cleared (incl. PENDING_REQUIREMENTS, PATIENT_DOCUMENT_DATA, PATIENT_CONTACT), BEDS/VENTILATORS/BLOOD_INVENTORY/DEPARTMENTS/DOCTORS/OPERATING_THEATRES reseeded, stale discharge/approval markers deleted.&quot;]" />
   </Sequence>
 </Activity>

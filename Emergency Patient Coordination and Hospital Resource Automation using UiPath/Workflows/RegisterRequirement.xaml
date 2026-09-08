@@ -87,6 +87,13 @@
                   <Assign.To><OutArgument x:TypeArguments="x:String">[v_Row]</OutArgument></Assign.To>
                   <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join("|", New String() {out_RequirementId, in_CaseId.Trim(), in_PatientId.Trim(), in_Type.Trim(), If(in_RequestedValue Is Nothing, "", in_RequestedValue.Trim()), If(in_CurrentFallback Is Nothing, "", in_CurrentFallback.Trim()), If(String.IsNullOrEmpty(in_Priority), "LOW", in_Priority.Trim()), "OPEN", v_Now, v_Now, ""})]</InArgument></Assign.Value>
                 </Assign>
+                <If DisplayName="File missing? write the header first" Condition="[Not System.IO.File.Exists(v_Path)]">
+                  <If.Then>
+                    <ui:WriteTextFile DisplayName="Write PENDING_REQUIREMENTS header"
+                      FileName="[v_Path]"
+                      Text="RequirementId|CaseId|PatientId|Type|RequestedValue|CurrentFallback|Priority|Status|CreatedAt|UpdatedAt|ResolvedAt" />
+                  </If.Then>
+                </If>
                 <ui:AppendLine DisplayName="Append PENDING_REQUIREMENTS row"
                   FileName="[v_Path]" Text="[v_Row]" />
                 <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: REQUIREMENT_OPENED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">

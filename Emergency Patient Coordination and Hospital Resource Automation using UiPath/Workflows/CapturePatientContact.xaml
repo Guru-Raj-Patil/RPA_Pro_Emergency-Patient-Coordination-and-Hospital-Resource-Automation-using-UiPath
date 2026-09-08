@@ -52,8 +52,23 @@
 
     <If DisplayName="Email provided but malformed?" Condition="[v_Email &lt;&gt; &quot;&quot; AndAlso Not System.Text.RegularExpressions.Regex.IsMatch(v_Email, &quot;^[^@\s]+@[^@\s]+\.[^@\s]+$&quot;)]">
       <If.Then>
-        <Throw DisplayName="Throw: BE-011 invalid email"
-          Exception="[New System.Exception(&quot;BE-011: Invalid email address '&quot; &amp; v_Email &amp; &quot;' for patient &quot; &amp; in_PatientId &amp; &quot; (expected e.g. patient@gmail.com)&quot;)]" />
+        <Sequence DisplayName="Invalid email - store blank, do NOT abort the admission">
+          <ui:LogMessage DisplayName="Log: bad email" Level="Warn"
+            Message="[&quot;[CapturePatientContact] Email '&quot; &amp; v_Email &amp; &quot;' for &quot; &amp; in_PatientId &amp; &quot; is not a valid address - storing blank; the discharge bill cannot be emailed until a valid address is recorded. A contact-field typo must never block an emergency admission.&quot;]" />
+          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: CONTACT_EMAIL_INVALID" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+            <ui:InvokeWorkflowFile.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[in_DbFolder]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[If(in_CaseId Is Nothing, "", in_CaseId)]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_Action">["CONTACT_EMAIL_INVALID"]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Email '" &amp; v_Email &amp; "' for " &amp; in_PatientId &amp; " is not a valid address - stored blank."]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+            </ui:InvokeWorkflowFile.Arguments>
+          </ui:InvokeWorkflowFile>
+          <Assign DisplayName="Blank the email">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Email]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[""]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
       </If.Then>
     </If>
 
