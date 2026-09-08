@@ -1,0 +1,257 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_ApproveDischarge"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="out_ApprovedCount" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_Summary" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="ApproveDischarge" sap2010:WorkflowViewState.IdRef="Sequence_APD">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_ReqAppr" />
+      <Variable x:TypeArguments="x:String" Name="v_CfgRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmRaw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Cands" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Idx" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_F" />
+      <Variable x:TypeArguments="x:String" Name="v_CaseId" />
+      <Variable x:TypeArguments="x:String" Name="v_PatId" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId" />
+      <Variable x:TypeArguments="x:String" Name="v_ApprFile" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_Approved" />
+      <Variable x:TypeArguments="x:String" Name="v_Admin" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Total" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_EmailSent" />
+      <Variable x:TypeArguments="x:String" Name="v_BillPath" />
+      <Variable x:TypeArguments="x:Int32" Name="v_ApprovedCount" />
+      <Variable x:TypeArguments="x:Int32" Name="v_DischCount" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Fulfilled" />
+      <Variable x:TypeArguments="x:String" Name="v_Ignore" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Resolve project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="notifications folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Default: approval required">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_ReqAppr]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Read DischargeRequiresAdminApproval (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read Config.psv"
+            FileName="[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Config.psv&quot;)]" Content="[v_CfgRaw]" />
+          <Assign>
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_ReqAppr]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[Not v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "dischargerequiresadminapproval").Select(Function(a) a(1).Trim().ToLower()).DefaultIfEmpty("true").First() = "false"]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Cfg" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: flag defaulted" Level="Warn"
+              Message="[&quot;[ApproveDischarge] Config flag not read (&quot; &amp; ex_Cfg.Message &amp; &quot;) - defaulting DischargeRequiresAdminApproval=True.&quot;]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:LogMessage DisplayName="Log: approve start" Level="Info"
+      Message="[&quot;[ApproveDischarge] Reviewing clinically-certified admissions in &quot; &amp; v_Db &amp; &quot; (approval required: &quot; &amp; v_ReqAppr.ToString() &amp; &quot;)&quot;]" />
+
+    <TryCatch DisplayName="Read ADMISSIONS.psv">
+      <TryCatch.Try>
+        <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv"
+          FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_AdmRaw]" />
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_A" /></ActivityAction.Argument>
+            <Throw DisplayName="Throw SE-009"
+              Exception="[New System.Exception(&quot;SE-009: ApproveDischarge could not read ADMISSIONS.psv: &quot; &amp; ex_A.Message)]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <Assign DisplayName="Clinically-certified admissions">
+      <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Cands]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_AdmRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 9 AndAlso l.Split(&quot;|&quot;c)(7).Trim() = &quot;FitForDischarge&quot;).ToList()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Reset counters">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ApprovedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
+    </Assign>
+
+    <While DisplayName="Each certified admission" Condition="[v_Idx &lt; v_Cands.Count]">
+      <Sequence DisplayName="Review one case">
+        <TryCatch DisplayName="Approve one (isolated)">
+          <TryCatch.Try>
+            <Sequence>
+              <Assign DisplayName="Fields">
+                <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_F]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Cands(v_Idx).Split("|"c).ToList()]</InArgument></Assign.Value>
+              </Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(1).Trim()]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PatId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(2).Trim()]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_BedId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_F(3).Trim()]</InArgument></Assign.Value></Assign>
+              <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_ApprFile]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Notif, "APPROVE_DISCHARGE_" &amp; v_CaseId &amp; ".txt")]</InArgument></Assign.Value></Assign>
+              <Assign DisplayName="Approved?">
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Approved]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Boolean">[Not v_ReqAppr OrElse System.IO.File.Exists(v_ApprFile)]</InArgument></Assign.Value>
+              </Assign>
+
+              <If DisplayName="Admin approval present?" Condition="[v_Approved]">
+                <If.Then>
+                  <Sequence>
+                    <Assign DisplayName="Approving admin">
+                      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Admin]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(v_ApprFile) AndAlso System.IO.File.ReadAllText(v_ApprFile).Trim() &lt;&gt; "", System.IO.File.ReadAllLines(v_ApprFile).First().Replace("Admin:", "").Replace("|", "/").Trim(), If(v_ReqAppr, "Admin", "Auto (DischargeRequiresAdminApproval=False)"))]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DISCHARGE_APPROVED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DISCHARGE_APPROVED"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Discharge approved by " &amp; v_Admin &amp; " for " &amp; v_CaseId &amp; " (" &amp; v_PatId &amp; "), bed " &amp; v_BedId &amp; ". Final bill + email + resource release follow."]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">[v_Admin]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <ui:WriteTextFile DisplayName="Write DISCHARGE_APPROVED marker"
+                      FileName="[System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVED_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                      Text="[&quot;DISCHARGE APPROVED (administrative)&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Approved by: &quot; &amp; v_Admin &amp; &quot;   At: &quot; &amp; v_Now &amp; Environment.NewLine &amp; &quot;Clinical fitness was certified separately by the attending doctor (HUMAN GATE 2). This gate is the administrative sign-off that releases billing and resources.&quot;]" />
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="EmailFinalBill" UnSafe="False" WorkflowFileName="Workflows\EmailFinalBill.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <OutArgument x:TypeArguments="x:Int32" x:Key="out_Total">[v_Total]</OutArgument>
+                        <OutArgument x:TypeArguments="x:Boolean" x:Key="out_EmailSent">[v_EmailSent]</OutArgument>
+                        <OutArgument x:TypeArguments="x:String" x:Key="out_BillPath">[v_BillPath]</OutArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <Assign DisplayName="Increment approved">
+                      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_ApprovedCount]</OutArgument></Assign.To>
+                      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_ApprovedCount + 1]</InArgument></Assign.Value>
+                    </Assign>
+                    <ui:LogMessage DisplayName="Log: approved" Level="Info"
+                      Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; approved by &quot; &amp; v_Admin &amp; &quot; - bill INR &quot; &amp; v_Total.ToString() &amp; &quot;, email &quot; &amp; If(v_EmailSent, &quot;sent&quot;, &quot;NOT sent (logged)&quot;) &amp; &quot;.&quot;]" />
+                  </Sequence>
+                </If.Then>
+                <If.Else>
+                  <Sequence>
+                    <ui:WriteTextFile DisplayName="Write approval request"
+                      FileName="[System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVAL_REQUEST_&quot; &amp; v_CaseId &amp; &quot;.txt&quot;)]"
+                      Text="[&quot;DISCHARGE: PENDING ADMIN APPROVAL&quot; &amp; Environment.NewLine &amp; &quot;Case: &quot; &amp; v_CaseId &amp; &quot;   Patient: &quot; &amp; v_PatId &amp; &quot;   Bed: &quot; &amp; v_BedId &amp; Environment.NewLine &amp; &quot;Status: Treatment completed, clinically certified fit for discharge.&quot; &amp; Environment.NewLine &amp; Environment.NewLine &amp; &quot;ACTION (HUMAN - authorised administrator): approve discharge by placing a file named APPROVE_DISCHARGE_&quot; &amp; v_CaseId &amp; &quot;.txt in this folder (first line 'Admin: &lt;your name&gt;' is recorded in the audit log). Only then are the final bill generated, emailed and the resources released. (Set Config DischargeRequiresAdminApproval=False to auto-approve for demo runs.)&quot; &amp; Environment.NewLine &amp; &quot;Requested at: &quot; &amp; v_Now]" />
+                    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: DISCHARGE_PENDING_ADMIN_APPROVAL" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                      <ui:InvokeWorkflowFile.Arguments>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Action">["DISCHARGE_PENDING_ADMIN_APPROVAL"]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_Description">[v_CaseId &amp; " is clinically certified fit for discharge and awaiting administrative approval. Billing and resource release are held until an authorised admin approves."]</InArgument>
+                        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                      </ui:InvokeWorkflowFile.Arguments>
+                    </ui:InvokeWorkflowFile>
+                    <ui:LogMessage DisplayName="Log: pending approval" Level="Info"
+                      Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; held - awaiting admin approval (APPROVE_DISCHARGE_&quot; &amp; v_CaseId &amp; &quot;.txt).&quot;]" />
+                  </Sequence>
+                </If.Else>
+              </If>
+            </Sequence>
+          </TryCatch.Try>
+          <TryCatch.Catches>
+            <Catch x:TypeArguments="s:Exception">
+              <ActivityAction x:TypeArguments="s:Exception">
+                <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_R" /></ActivityAction.Argument>
+                <ui:LogMessage DisplayName="Log: review failed" Level="Warn"
+                  Message="[&quot;[ApproveDischarge] &quot; &amp; v_CaseId &amp; &quot; skipped - &quot; &amp; ex_R.Message]" />
+              </ActivityAction>
+            </Catch>
+          </TryCatch.Catches>
+        </TryCatch>
+        <Assign DisplayName="Next">
+          <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Idx]</OutArgument></Assign.To>
+          <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Idx + 1]</InArgument></Assign.Value>
+        </Assign>
+      </Sequence>
+    </While>
+
+    <If DisplayName="Any approved this run?" Condition="[v_ApprovedCount &gt; 0]">
+      <If.Then>
+        <Sequence>
+          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="ProcessDischarge" UnSafe="False" WorkflowFileName="Workflows\ProcessDischarge.xaml">
+            <ui:InvokeWorkflowFile.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+              <OutArgument x:TypeArguments="x:Int32" x:Key="out_DischargedCount">[v_DischCount]</OutArgument>
+              <OutArgument x:TypeArguments="x:String" x:Key="out_Summary">[v_Ignore]</OutArgument>
+            </ui:InvokeWorkflowFile.Arguments>
+          </ui:InvokeWorkflowFile>
+          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="FulfilPendingRequirements (freed beds)" UnSafe="False" WorkflowFileName="Workflows\FulfilPendingRequirements.xaml">
+            <ui:InvokeWorkflowFile.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_Trigger">["discharge of " &amp; v_ApprovedCount.ToString() &amp; " case(s)"]</InArgument>
+              <OutArgument x:TypeArguments="x:Int32" x:Key="out_FulfilledCount">[v_Fulfilled]</OutArgument>
+              <OutArgument x:TypeArguments="x:String" x:Key="out_Summary">[v_Ignore]</OutArgument>
+            </ui:InvokeWorkflowFile.Arguments>
+          </ui:InvokeWorkflowFile>
+        </Sequence>
+      </If.Then>
+    </If>
+
+    <Assign DisplayName="out_ApprovedCount">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_ApprovedCount]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_ApprovedCount]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_Summary">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[out_Summary]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["ApproveDischarge (admin gate): " &amp; v_Cands.Count.ToString() &amp; " certified case(s), " &amp; v_ApprovedCount.ToString() &amp; " approved this run -&gt; bill generated + emailed, " &amp; v_DischCount.ToString() &amp; " discharged, " &amp; v_Fulfilled.ToString() &amp; " pending requirement(s) served from freed resources. " &amp; (v_Cands.Count - v_ApprovedCount).ToString() &amp; " still awaiting admin approval."]</InArgument></Assign.Value>
+    </Assign>
+    <ui:LogMessage DisplayName="Log: approve done" Level="Info" Message="[out_Summary]" />
+  </Sequence>
+</Activity>

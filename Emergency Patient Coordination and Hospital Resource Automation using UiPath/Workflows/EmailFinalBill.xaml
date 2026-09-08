@@ -1,0 +1,301 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_EmailFinalBill"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="out_Total" Type="OutArgument(x:Int32)" />
+    <x:Property Name="out_EmailSent" Type="OutArgument(x:Boolean)" />
+    <x:Property Name="out_BillPath" Type="OutArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="EmailFinalBill" sap2010:WorkflowViewState.IdRef="Sequence_EFB">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Db" />
+      <Variable x:TypeArguments="x:String" Name="v_Root" />
+      <Variable x:TypeArguments="x:String" Name="v_Notif" />
+      <Variable x:TypeArguments="x:String" Name="v_EmailDir" />
+      <Variable x:TypeArguments="x:String" Name="v_Now" />
+      <Variable x:TypeArguments="x:String" Name="v_CfgRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_Hosp" />
+      <Variable x:TypeArguments="x:Double" Name="v_TaxPct" />
+      <Variable x:TypeArguments="x:String" Name="v_SubjPrefix" />
+      <Variable x:TypeArguments="x:String" Name="v_SmtpFrom" />
+      <Variable x:TypeArguments="x:String" Name="v_BillRaw" />
+      <Variable x:TypeArguments="x:String" Name="v_LineItems" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Subtotal" />
+      <Variable x:TypeArguments="x:Int32" Name="v_Tax" />
+      <Variable x:TypeArguments="x:String" Name="v_PatId" />
+      <Variable x:TypeArguments="x:String" Name="v_PName" />
+      <Variable x:TypeArguments="x:String" Name="v_BedId" />
+      <Variable x:TypeArguments="x:String" Name="v_AttId" />
+      <Variable x:TypeArguments="x:String" Name="v_AttName" />
+      <Variable x:TypeArguments="x:String" Name="v_AdmAt" />
+      <Variable x:TypeArguments="x:String" Name="v_Ward" />
+      <Variable x:TypeArguments="x:String" Name="v_Email" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_Insured" />
+      <Variable x:TypeArguments="x:String" Name="v_PayStatus" />
+      <Variable x:TypeArguments="x:String" Name="v_FollowUp" />
+      <Variable x:TypeArguments="x:String" Name="v_BillText" />
+      <Variable x:TypeArguments="x:String" Name="v_TxtPath" />
+      <Variable x:TypeArguments="x:String" Name="v_HtmlPath" />
+      <Variable x:TypeArguments="x:String" Name="v_Subject" />
+      <Variable x:TypeArguments="x:Object" Name="v_Ignore" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="db folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Db]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(String.IsNullOrEmpty(in_DbFolder), System.IO.Path.Combine(If(System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), &quot;project.json&quot;)), System.IO.Directory.GetCurrentDirectory(), System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).FullName), &quot;Data&quot;, &quot;db&quot;), in_DbFolder)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="project root">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Root]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Directory.GetParent(System.IO.Directory.GetParent(v_Db).FullName).FullName]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="notifications folder">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Notif]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Notifications&quot;)]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Now">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Now]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Follow-up (+7d)">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_FollowUp]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.AddDays(7).ToString("yyyy-MM-dd")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="defaults">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Hosp]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">["City General Hospital"]</InArgument></Assign.Value>
+    </Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:Double">[v_TaxPct]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Double">[0.0]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_SubjPrefix]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["Hospital Discharge Bill"]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_SmtpFrom]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">["rpa-bot@hospital.local"]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_EmailDir]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_Notif]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_EmailSent]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:Boolean">[False]</InArgument></Assign.Value></Assign>
+
+    <TryCatch DisplayName="Read billing config (non-fatal)">
+      <TryCatch.Try>
+        <Sequence>
+          <ui:ReadTextFile DisplayName="Read Config.psv"
+            FileName="[System.IO.Path.Combine(v_Root, &quot;Data&quot;, &quot;Config.psv&quot;)]" Content="[v_CfgRaw]" />
+          <Assign DisplayName="HospitalName">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_Hosp]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "hospitalname").Select(Function(a) a(1).Trim()).DefaultIfEmpty("City General Hospital").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="BillingTaxPercent">
+            <Assign.To><OutArgument x:TypeArguments="x:Double">[v_TaxPct]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Double">[Val(v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "billingtaxpercent").Select(Function(a) a(1).Trim()).DefaultIfEmpty("0").First())]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="BillingEmailSubjectPrefix">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_SubjPrefix]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "billingemailsubjectprefix").Select(Function(a) a(1).Trim()).DefaultIfEmpty("Hospital Discharge Bill").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="SMTPFrom">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_SmtpFrom]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "smtpfrom").Select(Function(a) a(1).Trim()).DefaultIfEmpty("rpa-bot@hospital.local").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="EmailOutputFolder">
+            <Assign.To><OutArgument x:TypeArguments="x:String">[v_EmailDir]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Root, v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "emailoutputfolder").Select(Function(a) a(1).Trim()).DefaultIfEmpty("Data\Notifications").First())]</InArgument></Assign.Value>
+          </Assign>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Cfg" /></ActivityAction.Argument>
+            <ui:LogMessage DisplayName="Log: config defaulted" Level="Warn"
+              Message="[&quot;[EmailFinalBill] Config not read (&quot; &amp; ex_Cfg.Message &amp; &quot;) - using defaults (tax 0%, folder Data\Notifications).&quot;]" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:ReadTextFile DisplayName="Read BILLING.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;BILLING.psv&quot;)]" Content="[v_BillRaw]" />
+    <Assign DisplayName="Subtotal (existing charges only)">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Subtotal]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_BillRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 7 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) CInt(a(6).Trim())).DefaultIfEmpty(0).Sum()]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Line items">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_LineItems]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, v_BillRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 7 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) "  " &amp; (If(a(3).Trim() = "", a(2).Trim(), a(3).Trim()) &amp; New String(" "c, 34)).Substring(0, 34) &amp; " " &amp; a(4).Trim().PadLeft(3) &amp; " x " &amp; a(5).Trim().PadLeft(8) &amp; " = " &amp; a(6).Trim().PadLeft(10)))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Tax">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_Tax]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[CInt(Math.Round(v_Subtotal * v_TaxPct / 100.0))]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="out_Total">
+      <Assign.To><OutArgument x:TypeArguments="x:Int32">[out_Total]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Int32">[v_Subtotal + v_Tax]</InArgument></Assign.Value>
+    </Assign>
+
+    <ui:ReadTextFile DisplayName="Read ADMISSIONS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;ADMISSIONS.psv&quot;)]" Content="[v_CfgRaw]" />
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PatId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) a(2).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_BedId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) a(3).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_AttId]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) a(4).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_AdmAt]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 9 AndAlso a(1).Trim() = in_CaseId.Trim()).Select(Function(a) a(5).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value></Assign>
+
+    <ui:ReadTextFile DisplayName="Read PATIENTS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;PATIENTS.psv&quot;)]" Content="[v_CfgRaw]" />
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_PName]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim() = v_PatId).Select(Function(a) a(1).Trim()).DefaultIfEmpty(v_PatId).First()]</InArgument></Assign.Value></Assign>
+
+    <ui:ReadTextFile DisplayName="Read DOCTORS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;DOCTORS.psv&quot;)]" Content="[v_CfgRaw]" />
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_AttName]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 5 AndAlso a(0).Trim() = v_AttId).Select(Function(a) a(1).Trim() &amp; " (" &amp; a(4).Trim() &amp; ")").DefaultIfEmpty(v_AttId).First()]</InArgument></Assign.Value></Assign>
+
+    <ui:ReadTextFile DisplayName="Read BEDS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;BEDS.psv&quot;)]" Content="[v_CfgRaw]" />
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_Ward]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim() = v_BedId).Select(Function(a) a(1).Trim()).DefaultIfEmpty("").First()]</InArgument></Assign.Value></Assign>
+
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_Email]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(System.IO.Path.Combine(v_Db, &quot;PATIENT_CONTACT.psv&quot;)), System.IO.File.ReadAllText(System.IO.Path.Combine(v_Db, &quot;PATIENT_CONTACT.psv&quot;)).Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split(&quot;|&quot;c)).Where(Function(a) a.Length &gt;= 3 AndAlso a(0).Trim() = v_PatId AndAlso a(2).Trim() &lt;&gt; &quot;&quot;).Select(Function(a) a(2).Trim()).DefaultIfEmpty(&quot;&quot;).First(), &quot;&quot;)]</InArgument></Assign.Value></Assign>
+
+    <ui:ReadTextFile DisplayName="Read DOCUMENTS.psv" FileName="[System.IO.Path.Combine(v_Db, &quot;DOCUMENTS.psv&quot;)]" Content="[v_CfgRaw]" />
+    <Assign DisplayName="Insured?">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_Insured]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim().Split("|"c)).Any(Function(a) a.Length &gt;= 5 AndAlso a(1).Trim() = v_PatId AndAlso a(2).Trim() = "Insurance" AndAlso a(4).Trim() = "Present")]</InArgument></Assign.Value>
+    </Assign>
+    <Assign DisplayName="Payment status">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_PayStatus]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(v_Insured, "InsurancePending", "Invoiced")]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Bill text (existing fields only)">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_BillText]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(Environment.NewLine, New String() {
+        "======================================================",
+        " FINAL HOSPITAL BILL",
+        "======================================================",
+        " Hospital         : " &amp; v_Hosp,
+        " Patient Name     : " &amp; v_PName,
+        " Patient ID       : " &amp; v_PatId,
+        " Admission ID     : ADM-" &amp; in_CaseId.Trim(),
+        " Case Reference   : " &amp; in_CaseId.Trim(),
+        " Admission Date   : " &amp; v_AdmAt,
+        " Discharge Date   : " &amp; v_Now,
+        " Attending Doctor : " &amp; v_AttName,
+        " Ward / Bed       : " &amp; If(v_Ward = "", "-", v_Ward) &amp; " / " &amp; If(v_BedId = "", "-", v_BedId),
+        "------------------------------------------------------",
+        " CHARGES",
+        "------------------------------------------------------",
+        If(v_LineItems = "", "  (no charges posted)", v_LineItems),
+        "------------------------------------------------------",
+        " Subtotal         : INR " &amp; v_Subtotal.ToString(),
+        " Tax              : INR " &amp; v_Tax.ToString(),
+        " Discount         : INR 0",
+        " TOTAL AMOUNT     : INR " &amp; (v_Subtotal + v_Tax).ToString(),
+        " Payment Status   : " &amp; v_PayStatus,
+        " Follow-up Date   : " &amp; v_FollowUp,
+        "======================================================",
+        " Administrative billing document. Clinical care and coding",
+        " decisions remain with authorised hospital staff.",
+        "======================================================" })]</InArgument></Assign.Value>
+    </Assign>
+
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_TxtPath]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Notif, "BILL_" &amp; in_CaseId.Trim() &amp; ".txt")]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[v_HtmlPath]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(v_Notif, "BILL_" &amp; in_CaseId.Trim() &amp; ".html")]</InArgument></Assign.Value></Assign>
+    <Assign><Assign.To><OutArgument x:TypeArguments="x:String">[out_BillPath]</OutArgument></Assign.To><Assign.Value><InArgument x:TypeArguments="x:String">[v_TxtPath]</InArgument></Assign.Value></Assign>
+    <Assign DisplayName="Ensure notif dir">
+      <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Object">[System.IO.Directory.CreateDirectory(v_Notif)]</InArgument></Assign.Value>
+    </Assign>
+    <ui:WriteTextFile DisplayName="Write BILL_&lt;case&gt;.txt" FileName="[v_TxtPath]" Text="[v_BillText]" />
+    <ui:WriteTextFile DisplayName="Write BILL_&lt;case&gt;.html" FileName="[v_HtmlPath]"
+      Text="[&quot;&lt;html&gt;&lt;head&gt;&lt;meta charset='utf-8'&gt;&lt;style&gt;body{font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;padding:20px}.card{background:#fff;border-radius:8px;padding:24px;max-width:760px;margin:auto;box-shadow:0 2px 8px rgba(0,0,0,.1)}.hdr{background:#004687;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:-24px -24px 16px}pre{background:#f8f9fa;padding:14px;border-left:4px solid #004687;white-space:pre-wrap;font-size:13px}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;div class='card'&gt;&lt;div class='hdr'&gt;&lt;h2 style='margin:0'&gt;Discharge Bill&lt;/h2&gt;&lt;p style='margin:4px 0 0'&gt;&quot; &amp; in_CaseId.Trim() &amp; &quot; | &quot; &amp; v_Now &amp; &quot;&lt;/p&gt;&lt;/div&gt;&lt;pre&gt;&quot; &amp; v_BillText.Replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;).Replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;) &amp; &quot;&lt;/pre&gt;&lt;p style='font-size:11px;color:#6c757d'&gt;Automated administrative billing document from &quot; &amp; v_Hosp &amp; &quot; RPA.&lt;/p&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;&quot;]" />
+
+    <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: BILL_GENERATED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_Action">["BILL_GENERATED"]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Final bill: subtotal " &amp; v_Subtotal.ToString() &amp; " + tax " &amp; v_Tax.ToString() &amp; " = " &amp; (v_Subtotal + v_Tax).ToString() &amp; " INR; payment " &amp; v_PayStatus &amp; "; written to " &amp; System.IO.Path.GetFileName(v_TxtPath) &amp; " (from existing BILLING rows - no charges invented)."]</InArgument>
+        <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+
+    <Assign DisplayName="Subject">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Subject]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[v_SubjPrefix &amp; " - Patient " &amp; v_PatId]</InArgument></Assign.Value>
+    </Assign>
+
+    <TryCatch DisplayName="Send bill email (simulated; failure never rolls back)">
+      <TryCatch.Try>
+        <Sequence>
+          <If DisplayName="Email address on file?" Condition="[String.IsNullOrEmpty(v_Email)]">
+            <If.Then>
+              <Throw Exception="[New System.Exception(&quot;no registered email address on file for patient &quot; &amp; v_PatId)]" />
+            </If.Then>
+          </If>
+          <Assign DisplayName="Ensure email dir">
+            <Assign.To><OutArgument x:TypeArguments="x:Object">[v_Ignore]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Object">[System.IO.Directory.CreateDirectory(v_EmailDir)]</InArgument></Assign.Value>
+          </Assign>
+          <ui:WriteTextFile DisplayName="Write EMAIL_&lt;case&gt;_bill_&lt;ts&gt;.html"
+            FileName="[System.IO.Path.Combine(v_EmailDir, &quot;EMAIL_&quot; &amp; in_CaseId.Trim() &amp; &quot;_bill_&quot; &amp; DateTime.Now.ToString(&quot;yyyyMMdd_HHmmss&quot;) &amp; &quot;.html&quot;)]"
+            Text="[&quot;&lt;html&gt;&lt;body style='font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;padding:20px'&gt;&lt;div style='background:#fff;max-width:760px;margin:auto;border-radius:8px;padding:24px'&gt;&quot; &amp; &quot;&lt;p&gt;&lt;b&gt;To:&lt;/b&gt; &quot; &amp; v_Email &amp; &quot;&lt;br&gt;&lt;b&gt;From:&lt;/b&gt; &quot; &amp; v_SmtpFrom &amp; &quot;&lt;br&gt;&lt;b&gt;Subject:&lt;/b&gt; &quot; &amp; v_Subject &amp; &quot;&lt;/p&gt;&quot; &amp; &quot;&lt;p&gt;Dear &quot; &amp; v_PName &amp; &quot;,&lt;/p&gt;&lt;p&gt;Your treatment/admission has been completed and your discharge has been approved. Please find your final hospital bill below.&lt;/p&gt;&quot; &amp; &quot;&lt;p&gt;&lt;b&gt;Patient ID:&lt;/b&gt; &quot; &amp; v_PatId &amp; &quot;&lt;br&gt;&lt;b&gt;Admission ID:&lt;/b&gt; ADM-&quot; &amp; in_CaseId.Trim() &amp; &quot;&lt;br&gt;&lt;b&gt;Total Amount:&lt;/b&gt; INR &quot; &amp; (v_Subtotal + v_Tax).ToString() &amp; &quot;&lt;/p&gt;&quot; &amp; &quot;&lt;pre style='background:#f8f9fa;padding:14px;border-left:4px solid #004687;white-space:pre-wrap;font-size:13px'&gt;&quot; &amp; v_BillText.Replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;).Replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;) &amp; &quot;&lt;/pre&gt;&lt;p&gt;Regards,&lt;br&gt;Hospital Administration&lt;/p&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;&quot;]" />
+          <Assign DisplayName="mark sent">
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_EmailSent]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value>
+          </Assign>
+          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: BILL_EMAIL_SENT" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+            <ui:InvokeWorkflowFile.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_Action">["BILL_EMAIL_SENT"]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Final bill (INR " &amp; (v_Subtotal + v_Tax).ToString() &amp; ") emailed to " &amp; v_Email &amp; " (simulated delivery envelope written to " &amp; System.IO.Path.GetFileName(v_EmailDir) &amp; ")."]</InArgument>
+              <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+            </ui:InvokeWorkflowFile.Arguments>
+          </ui:InvokeWorkflowFile>
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="s:Exception">
+          <ActivityAction x:TypeArguments="s:Exception">
+            <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_Mail" /></ActivityAction.Argument>
+            <Sequence>
+              <Assign DisplayName="mark not sent">
+                <Assign.To><OutArgument x:TypeArguments="x:Boolean">[out_EmailSent]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:Boolean">[False]</InArgument></Assign.Value>
+              </Assign>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Audit: EMAIL_SEND_FAILED" UnSafe="False" WorkflowFileName="Workflows\WriteAuditLog.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_Db]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[in_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Action">["EMAIL_SEND_FAILED"]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Bill NOT emailed (" &amp; ex_Mail.Message &amp; "). Discharge, billing and resource release stand; the bill file " &amp; System.IO.Path.GetFileName(v_TxtPath) &amp; " is on disk; retry from the admin panel."]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <ui:LogMessage DisplayName="Log: email failed (non-fatal)" Level="Warn"
+                Message="[&quot;[EmailFinalBill] &quot; &amp; in_CaseId &amp; &quot; - bill generated but email failed: &quot; &amp; ex_Mail.Message &amp; &quot; (discharge NOT rolled back).&quot;]" />
+            </Sequence>
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+
+    <ui:LogMessage DisplayName="Log: bill done" Level="Info"
+      Message="[&quot;[EmailFinalBill] &quot; &amp; in_CaseId &amp; &quot;: total INR &quot; &amp; (v_Subtotal + v_Tax).ToString() &amp; &quot; (&quot; &amp; v_PayStatus &amp; &quot;), email &quot; &amp; If(out_EmailSent, &quot;sent to &quot; &amp; v_Email, &quot;NOT sent&quot;) &amp; &quot;.&quot;]" />
+  </Sequence>
+</Activity>

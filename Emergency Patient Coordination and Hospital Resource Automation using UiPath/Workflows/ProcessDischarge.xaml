@@ -74,6 +74,7 @@
       <Variable x:TypeArguments="x:String" Name="v_RelIds" />
       <Variable x:TypeArguments="x:String" Name="v_Buf" />
       <Variable x:TypeArguments="x:Int32" Name="v_DischargedCount" />
+      <Variable x:TypeArguments="x:Boolean" Name="v_ReqAppr" />
     </Sequence.Variables>
 
     <Assign DisplayName="Resolve project root">
@@ -96,6 +97,10 @@
       <Assign.To><OutArgument x:TypeArguments="x:String">[v_FollowUp]</OutArgument></Assign.To>
       <Assign.Value><InArgument x:TypeArguments="x:String">[DateTime.Now.AddDays(7).ToString("yyyy-MM-dd")]</InArgument></Assign.Value>
     </Assign>
+    <Assign DisplayName="Default: admin approval required for discharge">
+      <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_ReqAppr]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:Boolean">[True]</InArgument></Assign.Value>
+    </Assign>
 
     <TryCatch DisplayName="Read hospital name (non-fatal)">
       <TryCatch.Try>
@@ -105,6 +110,10 @@
           <Assign>
             <Assign.To><OutArgument x:TypeArguments="x:String">[v_Hospital]</OutArgument></Assign.To>
             <Assign.Value><InArgument x:TypeArguments="x:String">[v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "hospitalname").Select(Function(a) a(1).Trim()).DefaultIfEmpty("City General Hospital").First()]</InArgument></Assign.Value>
+          </Assign>
+          <Assign DisplayName="DischargeRequiresAdminApproval">
+            <Assign.To><OutArgument x:TypeArguments="x:Boolean">[v_ReqAppr]</OutArgument></Assign.To>
+            <Assign.Value><InArgument x:TypeArguments="x:Boolean">[Not v_CfgRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim().Split("|"c)).Where(Function(a) a.Length &gt;= 2 AndAlso a(0).Trim().ToLower() = "dischargerequiresadminapproval").Select(Function(a) a(1).Trim().ToLower()).DefaultIfEmpty("true").First() = "false"]</InArgument></Assign.Value>
           </Assign>
         </Sequence>
       </TryCatch.Try>
@@ -140,10 +149,16 @@
       </TryCatch.Catches>
     </TryCatch>
 
-    <Assign DisplayName="Certified-but-not-discharged rows">
+    <Assign DisplayName="Certified + admin-approved + not-yet-discharged rows">
       <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Cands]</OutArgument></Assign.To>
-      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_DisRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 10 AndAlso l.Split("|"c)(3).Trim() &lt;&gt; "" AndAlso l.Split("|"c)(9).Trim() = "").ToList()]</InArgument></Assign.Value>
+      <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_DisRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Where(Function(l) l.Split("|"c).Length &gt;= 10 AndAlso l.Split("|"c)(3).Trim() &lt;&gt; "" AndAlso l.Split("|"c)(9).Trim() = "" AndAlso (Not v_ReqAppr OrElse System.IO.File.Exists(System.IO.Path.Combine(v_Notif, "DISCHARGE_APPROVED_" &amp; l.Split("|"c)(1).Trim() &amp; ".txt")))).ToList()]</InArgument></Assign.Value>
     </Assign>
+    <If DisplayName="Any certified case still awaiting admin approval?" Condition="[v_ReqAppr AndAlso v_DisRaw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(Function(l) l.Trim()).Any(Function(l) l.Split(&quot;|&quot;c).Length &gt;= 10 AndAlso l.Split(&quot;|&quot;c)(3).Trim() &lt;&gt; &quot;&quot; AndAlso l.Split(&quot;|&quot;c)(9).Trim() = &quot;&quot; AndAlso Not System.IO.File.Exists(System.IO.Path.Combine(v_Notif, &quot;DISCHARGE_APPROVED_&quot; &amp; l.Split(&quot;|&quot;c)(1).Trim() &amp; &quot;.txt&quot;)))]">
+      <If.Then>
+        <ui:LogMessage DisplayName="Log: awaiting admin approval" Level="Info"
+          Message="[&quot;[ProcessDischarge] One or more clinically-certified cases are held pending administrative discharge approval (run ApproveDischarge.xaml, or set Config DischargeRequiresAdminApproval=False). They are not discharged by this run.&quot;]" />
+      </If.Then>
+    </If>
     <Assign DisplayName="Reset counter">
       <Assign.To><OutArgument x:TypeArguments="x:Int32">[v_DischargedCount]</OutArgument></Assign.To>
       <Assign.Value><InArgument x:TypeArguments="x:Int32">[0]</InArgument></Assign.Value>
