@@ -755,6 +755,12 @@ Workflows/HandleException.xaml
 Workflows/WriteAuditLog.xaml
 Workflows/GenerateDashboard.xaml
 Workflows/ResetDatastore.xaml
+Workflows/CapturePatientContact.xaml   (Phase 3 - store the patient's EmailAddress at registration)
+Workflows/RegisterRequirement.xaml    (Phase 3 - open a persistent PENDING_REQUIREMENTS row, FCFS timestamp)
+Workflows/ReleaseResource.xaml        (Phase 3 - admin manual release of a bed / ventilator / doctor / blood unit)
+Workflows/FulfilPendingRequirements.xaml (Phase 3 - earliest-valid-request-first allocation of a freed resource)
+Workflows/ApproveDischarge.xaml       (Phase 3 - administrative discharge sign-off gate)
+Workflows/EmailFinalBill.xaml         (Phase 3 - build the final bill from existing charges + email it, simulated)
 
 Use Invoke Workflow File and arguments to keep workflows modular.
 
@@ -1179,6 +1185,101 @@ E10. Dashboard (dashboard_template.html + index.html + GenerateDashboard.xaml + 
      9 new injected data blocks (DEPARTMENTS/DOCTORS/OPERATING_THEATRES/DOCTOR_ASSIGNMENTS/OT_SCHEDULE/
      ADMISSIONS/BILLING/DISCHARGES/INSURANCE_CLAIMS) wired through GenerateDashboard.xaml and the live
      console. This is the professor "100% automation" showcase.   [DONE - TEST 9-14 optional surgical case still to add]
+
+--- PHASE 3: FINE-TUNE EXTENSION (real-time coordination + admin controls) ---
+
+The batch pipeline above stays intact. Phase 3 makes the system behave as a real-time
+administrative platform: patients are coordinated the instant they submit (the always-on
+Python console, Data/Dashboard/console_server.py, mirrors Main.xaml + Workflows/*.xaml for
+one patient), unmet needs become persistent PENDING_REQUIREMENTS rows instead of a wait
+queue, and an authorised administrator can free resources and approve discharges. Every new
+behaviour also exists as a native UiPath workflow so a Studio run demonstrates it. No ML,
+no new dependencies - deterministic rules, database operations, event-driven processing.
+
+F1  Admin manual resource release. Workflows/ReleaseResource.xaml (standalone Run File) frees
+    an occupied/reserved BED / VENTILATOR / DOCTOR / BLOOD unit: the .psv state is really
+    mutated, the occupying admission is vacated, reservations/assignments closed, the release
+    time and admin name recorded (ADMIN_RELEASE_RESOURCE), then the pending queue is served.
+    Console: POST /api/release. Honours Config AdminManualRelease.   [DONE]
+F2  First-come-first-served pending fulfilment. An unavailable requested resource -> the patient
+    is admitted to the configured fallback ward and a PENDING_REQUIREMENTS row is opened with an
+    explicit RequirementCreatedAt; RequestedValue is never overwritten by the fallback.
+    Workflows/RegisterRequirement.xaml (idempotent per case+type). Main.xaml opens these rows
+    in its no-reservation branch.   [DONE]
+F3  Automatic allocation after a release. Workflows/FulfilPendingRequirements.xaml orders open
+    requirements EARLIEST-VALID-REQUEST-FIRST (RequirementCreatedAt), verifies the case is still
+    active and the resource genuinely free, then allocates - bed transfer into the freed ward
+    (temp bed released), consultant via AssignCareTeam, blood on restock, ventilator attach -
+    flips OPEN -> FULFILLED and audits AUTOMATIC_RESOURCE_ALLOCATION / BED_TRANSFERRED /
+    DOCTOR_ASSIGNED / REQUIREMENT_FULFILLED. ReleaseResource and ApproveDischarge invoke it
+    automatically; the console monitor runs it on a timer. Config PendingAllocationOrder=priority
+    flips the ordering back to priority-first.   [DONE]
+F4  Same FCFS mechanism for every limited resource (beds, wards, ventilators, doctors, blood).
+    A requirement is skipped if its case is discharged/closed or the resource does not match.   [DONE]
+F5/F6 Admin dashboard: a manual-release grid and a discharge-approval queue, both live from
+    /api/state; the intake form gains an Email field. Releasing a resource auto-fulfils the
+    earliest pending and it drops off the list - no manual re-assignment.   [DONE]
+F7  Patient email capture. A new EmailAddress column on PatientInput.psv (col 13, optional) +
+    Workflows/CapturePatientContact.xaml -> Data/db/PATIENT_CONTACT.psv side table (no PATIENTS
+    schema change). Validated format (BE-011 on a malformed value). Console captures it on submit.   [DONE]
+F8  Discharge approval. Treatment-complete never auto-discharges. CertifyDischarge.xaml
+    (HUMAN GATE 2) still certifies clinical fitness; Workflows/ApproveDischarge.xaml is the new
+    administrative gate: a case is approved when APPROVE_DISCHARGE_<case>.txt is present (first
+    line "Admin: <name>" is logged) OR Config DischargeRequiresAdminApproval=False (demo bypass).
+    On approval: audit DISCHARGE_APPROVED, write a DISCHARGE_APPROVED_<case>.txt marker, then
+    EmailFinalBill -> ProcessDischarge -> FulfilPendingRequirements. Console: POST /api/approve-discharge.   [DONE]
+F9  Automatic bill email. Workflows/EmailFinalBill.xaml totals the EXISTING BILLING rows only
+    (no invented charges) into the final bill - hospital, patient, admission id, dates, doctor,
+    ward/bed, line items, subtotal, configurable BillingTaxPercent, total, payment status -
+    writes BILL_<case>.txt/.html, audits BILL_GENERATED, then writes a simulated
+    EMAIL_<case>_bill_<ts>.html envelope to EmailOutputFolder and audits BILL_EMAIL_SENT.   [DONE]
+F10 Billing happens AFTER discharge approval. ProcessDischarge.xaml now also requires the
+    DISCHARGE_APPROVED_<case>.txt marker (unless DischargeRequiresAdminApproval=False) before it
+    will total the bill and release resources.   [DONE]
+F11 Resource release after discharge. ProcessDischarge frees the bed / ventilator / doctors;
+    ApproveDischarge then runs FulfilPendingRequirements so the freed bed goes to the earliest
+    valid pending request.   [DONE]
+F12 Audit logging: ADMIN_RELEASE_RESOURCE, AUTOMATIC_RESOURCE_ALLOCATION, TEMP_BED_ASSIGNED,
+    REQUIREMENT_OPENED/FULFILLED, BED_TRANSFERRED, DOCTOR_ASSIGNED, DISCHARGE_APPROVED,
+    BILL_GENERATED, BILL_EMAIL_SENT, EMAIL_SEND_FAILED, RESOURCE_RELEASED_AFTER_DISCHARGE -
+    each with timestamp, admin/user, case, resource, description.   [DONE]
+F13 Failure handling. An email failure (no address on file, write error) is caught, audited
+    EMAIL_SEND_FAILED and surfaced as a WARN alert - the discharge, billing and resource
+    release are never rolled back. Allocation re-checks availability immediately before writing
+    so a resource taken by another process is not double-assigned.   [DONE]
+F14 Nothing was rewritten. The 15-step batch pipeline, the datastore, the dashboards and the
+    acceptance suite are unchanged; a normal 8-case Main.xaml run opens no PENDING_REQUIREMENTS
+    rows (every resource is available) so RunAcceptanceTests still passes exactly as before.   [DONE]
+
+Data model rule: RequestedValue (what the patient asked for) and the current bed are always
+kept distinct; RequirementStatus goes OPEN -> FULFILLED (or CANCELLED); the fallback bed is a
+TEMPORARY allocation released on transfer.
+
+Config flags added: AdminManualRelease, PendingAllocationOrder (fifo|priority),
+DischargeRequiresAdminApproval, BillingTaxPercent, BillingEmailSubjectPrefix.
+
+QUEUE POLICY: this project uses NO UiPath Queue (Config UseQueue=False). The primary patient
+admission flow starts immediately on submission (Main.xaml loops the input file; the console
+processes each submission synchronously). PENDING_REQUIREMENTS is a persistent requirement
+LEDGER polled by FulfilPendingRequirements / the console monitor - not a wait-to-be-picked
+work queue: a patient is admitted first (into a fallback bed) and the requirement is fulfilled
+in the background when the resource frees. If a real deployment adds an Orchestrator queue it
+should carry only non-blocking secondary work (notifications, report/audit batch, retries).
+
+DEMO SEQUENCE (Phase 3):
+  Studio: run Main.xaml  (intake -> readiness -> HUMAN GATE 1 -> reserve -> admission;
+          unmet needs open PENDING_REQUIREMENTS rows)
+  Run File: AccrueCharges.xaml  (xN, advances billing days)
+  Run File: CertifyDischarge.xaml   (HUMAN GATE 2 - attending doctor certifies fitness)
+  Drop file: APPROVE_DISCHARGE_<case>.txt  (authorised admin sign-off)
+  Run File: ApproveDischarge.xaml   (-> EmailFinalBill -> ProcessDischarge -> FulfilPendingRequirements)
+  Run File: PostDischargeFollowUp.xaml
+  Any time: Run File ReleaseResource.xaml (in_Kind / in_ResourceId / in_AdminName) to free a
+            resource and watch the earliest pending requirement get served automatically.
+  Live alternative: Data/Dashboard/Start Console.bat - submit from the browser, use the
+                    "Manual resource release" and "Discharge approvals" panels on the admin tab.
+  Tests: python Tests/finetune_checks.py (46/46) ; Run File Tests/RunFineTuneTests.xaml
+         (writes TEST_RESULTS.psv - rewrites the datastore, ResetDatastore afterwards).
 
 FOR EACH PHASE
 
