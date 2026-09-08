@@ -91,15 +91,15 @@ TOKENS = {
 }
 
 BASELINE_INPUT = [
-    "PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|VentilatorRequired|BloodGroup|BloodUnits|ProcessStatus|CaseId|Notes",
-    "P1024|Rahul Kumar|54|Male|Critical|ICU|Yes|O-|4|Pending||T1: Success scenario",
-    "P1025|Ananya Singh|32|Female|Urgent|ICU|No|A+|2|Pending||T2: Missing Medical Report",
-    "P1026|Mohan Das|67|Male|Critical|ICU|Yes|B+|3|Pending||T3: Run TestSetup_T3 first",
-    "P1027|Priya Sharma|45|Female|Critical|ICU|Yes|AB+|2|Pending||T4: Run TestSetup_T4 first",
-    "P1028|Arun Mehta|29|Male|Critical|ICU|Yes|O-|10|Pending||T5: Insufficient blood O-",
-    "P1029|Kavitha Nair|38|Female|Standard|General|No|B-|2|Pending||T6: Batch scenario",
-    "P1030|Suresh Patel|61|Male|Urgent|General|No|A-|1|Pending||T6: Batch scenario",
-    "P1031|Deepa Reddy|55|Female|Critical|Cardiology|No|AB-|1|Pending||T6: Batch scenario",
+    "PatientId|Name|Age|Gender|EmergencyType|RequiredDepartment|VentilatorRequired|BloodGroup|BloodUnits|ProcessStatus|CaseId|Notes|EmailAddress",
+    "P1024|Rahul Kumar|54|Male|Critical|ICU|Yes|O-|4|Pending||T1: Success scenario|rahul.kumar@gmail.com",
+    "P1025|Ananya Singh|32|Female|Urgent|ICU|No|A+|2|Pending||T2: Missing Medical Report|ananya.singh@outlook.com",
+    "P1026|Mohan Das|67|Male|Critical|ICU|Yes|B+|3|Pending||T3: Run TestSetup_T3 first|mohan.das@gmail.com",
+    "P1027|Priya Sharma|45|Female|Critical|ICU|Yes|AB+|2|Pending||T4: Run TestSetup_T4 first|priya.sharma@gmail.com",
+    "P1028|Arun Mehta|29|Male|Critical|ICU|Yes|O-|10|Pending||T5: Insufficient blood O-|arun.mehta@yahoo.com",
+    "P1029|Kavitha Nair|38|Female|Standard|General|No|B-|2|Pending||T6: Batch scenario|kavitha.nair@gmail.com",
+    "P1030|Suresh Patel|61|Male|Urgent|General|No|A-|1|Pending||T6: Batch scenario|suresh.patel@gmail.com",
+    "P1031|Deepa Reddy|55|Female|Critical|Cardiology|No|AB-|1|Pending||T6: Batch scenario|deepa.reddy@gmail.com",
 ]
 
 DB_SCHEMA = {
@@ -248,7 +248,7 @@ def submit_case(body):
     ts = now_str()
 
     append_line(INPUT_FILE, "|".join(
-        [pid, name, age, gender, etype, dept, "Yes" if vent else "No", bg, units, "Pending", "", notes]))
+        [pid, name, age, gender, etype, dept, "Yes" if vent else "No", bg, units, "Pending", "", notes, email]))
     append_line(os.path.join(DB, "PATIENTS.psv"), "|".join(
         [pid, name, age, gender, etype, dept, "1" if vent else "0", bg, units, ts]))
     save_patient_contact(pid, caseid, email, phone)
@@ -2256,6 +2256,7 @@ def sweep_pending():
         pid = p[0].strip()
         caseid = prefix + re.sub(r"\D", "", pid)
         try:
+            save_patient_contact(pid, caseid, p[12].strip() if len(p) >= 13 else "", "")
             out = process_case(pid, caseid, p[1].strip(), p[4].strip(), p[5].strip(),
                                p[6].strip().lower() in ("yes", "true", "1"), p[7].strip(), p[8].strip())
             done.append("%s -> %s" % (caseid, out.get("caseState", "?")))

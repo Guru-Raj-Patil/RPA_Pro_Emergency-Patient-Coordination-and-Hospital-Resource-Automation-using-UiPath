@@ -45,6 +45,7 @@
       <Variable x:TypeArguments="x:Boolean" Name="v_VentReq" />
       <Variable x:TypeArguments="x:String" Name="v_BloodGroup" />
       <Variable x:TypeArguments="x:Int32" Name="v_BloodUnits" />
+      <Variable x:TypeArguments="x:String" Name="v_Email" />
       <Variable x:TypeArguments="x:String" Name="v_CaseId" />
       <Variable x:TypeArguments="x:String" Name="v_DocStatus" />
       <Variable x:TypeArguments="x:String" Name="v_MissingDocs" />
@@ -200,6 +201,14 @@
             <InArgument x:TypeArguments="x:Int32">[CInt(v_F(8).Trim())]</InArgument>
           </Assign.Value>
         </Assign>
+        <Assign DisplayName="Email (optional col 13)" sap2010:WorkflowViewState.IdRef="Assign_Email">
+          <Assign.To>
+            <OutArgument x:TypeArguments="x:String">[v_Email]</OutArgument>
+          </Assign.To>
+          <Assign.Value>
+            <InArgument x:TypeArguments="x:String">[If(v_F.Count &gt;= 13, v_F(12).Trim(), "")]</InArgument>
+          </Assign.Value>
+        </Assign>
         <Assign DisplayName="CaseId (deterministic)" sap2010:WorkflowViewState.IdRef="Assign_14">
           <Assign.To>
             <OutArgument x:TypeArguments="x:String">[v_CaseId]</OutArgument>
@@ -240,6 +249,15 @@
                   <InArgument x:TypeArguments="x:String" x:Key="in_Action">["CASE_CREATED"]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_Description">["Case " &amp; v_CaseId &amp; " for " &amp; v_PatientId &amp; " (" &amp; v_PatientName &amp; "), dept " &amp; v_Dept &amp; ", emergency " &amp; v_EmergType]</InArgument>
                   <InArgument x:TypeArguments="x:String" x:Key="in_PerformedBy">["Bot"]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
+              <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 0b: CapturePatientContact" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_CPC" UnSafe="False" WorkflowFileName="Workflows\CapturePatientContact.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_DbFolder">[v_DbFolder]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_PatientId">[v_PatientId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_CaseId">[v_CaseId]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_EmailAddress">[v_Email]</InArgument>
+                  <InArgument x:TypeArguments="x:String" x:Key="in_Phone">[""]</InArgument>
                 </ui:InvokeWorkflowFile.Arguments>
               </ui:InvokeWorkflowFile>
               <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" DisplayName="Step 1: VerifyDocuments" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_5" UnSafe="False" WorkflowFileName="Workflows\VerifyDocuments.xaml">

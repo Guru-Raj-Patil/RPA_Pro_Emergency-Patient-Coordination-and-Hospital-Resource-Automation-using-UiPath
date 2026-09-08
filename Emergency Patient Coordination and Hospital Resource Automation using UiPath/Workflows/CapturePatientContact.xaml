@@ -1,0 +1,110 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Workflows_CapturePatientContact"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:s="clr-namespace:System;assembly=System.Private.CoreLib"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
+  xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_DbFolder" Type="InArgument(x:String)" />
+    <x:Property Name="in_PatientId" Type="InArgument(x:String)" />
+    <x:Property Name="in_CaseId" Type="InArgument(x:String)" />
+    <x:Property Name="in_EmailAddress" Type="InArgument(x:String)" />
+    <x:Property Name="in_Phone" Type="InArgument(x:String)" />
+  </x:Members>
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>System.Text.RegularExpressions</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>System.Text.RegularExpressions</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="CapturePatientContact" sap2010:WorkflowViewState.IdRef="Sequence_CPC">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="v_Email" />
+      <Variable x:TypeArguments="x:String" Name="v_Path" />
+      <Variable x:TypeArguments="x:String" Name="v_Raw" />
+      <Variable x:TypeArguments="scg:List(x:String)" Name="v_Kept" />
+      <Variable x:TypeArguments="x:String" Name="v_Row" />
+    </Sequence.Variables>
+
+    <Assign DisplayName="Normalise email">
+      <Assign.To><OutArgument x:TypeArguments="x:String">[v_Email]</OutArgument></Assign.To>
+      <Assign.Value><InArgument x:TypeArguments="x:String">[If(in_EmailAddress Is Nothing, "", in_EmailAddress.Trim())]</InArgument></Assign.Value>
+    </Assign>
+
+    <If DisplayName="Email provided but malformed?" Condition="[v_Email &lt;&gt; &quot;&quot; AndAlso Not System.Text.RegularExpressions.Regex.IsMatch(v_Email, &quot;^[^@\s]+@[^@\s]+\.[^@\s]+$&quot;)]">
+      <If.Then>
+        <Throw DisplayName="Throw: BE-011 invalid email"
+          Exception="[New System.Exception(&quot;BE-011: Invalid email address '&quot; &amp; v_Email &amp; &quot;' for patient &quot; &amp; in_PatientId &amp; &quot; (expected e.g. patient@gmail.com)&quot;)]" />
+      </If.Then>
+    </If>
+
+    <If DisplayName="Nothing to store?" Condition="[v_Email = &quot;&quot; AndAlso (in_Phone Is Nothing OrElse in_Phone.Trim() = &quot;&quot;)]">
+      <If.Then>
+        <ui:LogMessage DisplayName="Log: no contact details" Level="Trace"
+          Message="[&quot;[CapturePatientContact] No email/phone supplied for &quot; &amp; in_PatientId &amp; &quot; - nothing stored.&quot;]" />
+      </If.Then>
+      <If.Else>
+        <TryCatch DisplayName="Write PATIENT_CONTACT.psv (non-fatal)">
+          <TryCatch.Try>
+            <Sequence>
+              <Assign DisplayName="Path">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_Path]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[System.IO.Path.Combine(in_DbFolder, &quot;PATIENT_CONTACT.psv&quot;)]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Read existing (or header)">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_Raw]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[If(System.IO.File.Exists(v_Path), System.IO.File.ReadAllText(v_Path), &quot;PatientId|CaseId|EmailAddress|Phone|CapturedAt&quot;)]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Keep header + other patients">
+                <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Kept]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Raw.Split(New Char() {ChrW(10)}, StringSplitOptions.RemoveEmptyEntries).Select(Function(l) l.Trim()).Where(Function(l) l &lt;&gt; &quot;&quot; AndAlso Not l.StartsWith(in_PatientId.Trim() &amp; &quot;|&quot;)).ToList()]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Build contact row">
+                <Assign.To><OutArgument x:TypeArguments="x:String">[v_Row]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="x:String">[String.Join(&quot;|&quot;, New String() {in_PatientId.Trim(), If(in_CaseId Is Nothing, &quot;&quot;, in_CaseId.Trim()), v_Email, If(in_Phone Is Nothing, &quot;&quot;, in_Phone.Trim().Replace(&quot;|&quot;, &quot;/&quot;)), DateTime.Now.ToString(&quot;yyyy-MM-dd HH:mm:ss&quot;)})]</InArgument></Assign.Value>
+              </Assign>
+              <Assign DisplayName="Append row">
+                <Assign.To><OutArgument x:TypeArguments="scg:List(x:String)">[v_Kept]</OutArgument></Assign.To>
+                <Assign.Value><InArgument x:TypeArguments="scg:List(x:String)">[v_Kept.Concat(New String() {v_Row}).ToList()]</InArgument></Assign.Value>
+              </Assign>
+              <ui:WriteTextFile DisplayName="Write PATIENT_CONTACT.psv"
+                FileName="[v_Path]" Text="[String.Join(Environment.NewLine, v_Kept)]" />
+              <ui:LogMessage DisplayName="Log: contact stored" Level="Info"
+                Message="[&quot;[CapturePatientContact] Stored contact for &quot; &amp; in_PatientId &amp; &quot; (&quot; &amp; If(v_Email = &quot;&quot;, &quot;phone only&quot;, v_Email) &amp; &quot;).&quot;]" />
+            </Sequence>
+          </TryCatch.Try>
+          <TryCatch.Catches>
+            <Catch x:TypeArguments="s:Exception">
+              <ActivityAction x:TypeArguments="s:Exception">
+                <ActivityAction.Argument>
+                  <DelegateInArgument x:TypeArguments="s:Exception" Name="ex_C" />
+                </ActivityAction.Argument>
+                <ui:LogMessage DisplayName="Log: contact write failed" Level="Warn"
+                  Message="[&quot;[CapturePatientContact] Non-fatal: could not persist contact for &quot; &amp; in_PatientId &amp; &quot;: &quot; &amp; ex_C.Message]" />
+              </ActivityAction>
+            </Catch>
+          </TryCatch.Catches>
+        </TryCatch>
+      </If.Else>
+    </If>
+  </Sequence>
+</Activity>
