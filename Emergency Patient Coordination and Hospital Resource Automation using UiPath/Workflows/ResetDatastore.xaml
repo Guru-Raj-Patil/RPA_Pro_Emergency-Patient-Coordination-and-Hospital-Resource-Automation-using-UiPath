@@ -6,6 +6,7 @@
   xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
   xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib"
   xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib"
+  xmlns:sio="clr-namespace:System.IO;assembly=System.Private.CoreLib"
   xmlns:ui="http://schemas.uipath.com/workflow/activities"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <x:Members>
@@ -161,7 +162,23 @@
               <ForEach.Body>
                 <ActivityAction x:TypeArguments="x:String">
                   <ActivityAction.Argument><DelegateInArgument x:TypeArguments="x:String" Name="v_MarkerFile" /></ActivityAction.Argument>
-                  <ui:DeleteFile DisplayName="Delete marker" ContinueOnError="True" Path="[v_MarkerFile]" />
+                  <TryCatch DisplayName="Delete one marker (best effort)">
+                    <TryCatch.Try>
+                      <InvokeMethod DisplayName="Delete marker" MethodName="Delete" TargetType="sio:File">
+                        <InvokeMethod.Parameters>
+                          <InArgument x:TypeArguments="x:String">[v_MarkerFile]</InArgument>
+                        </InvokeMethod.Parameters>
+                      </InvokeMethod>
+                    </TryCatch.Try>
+                    <TryCatch.Catches>
+                      <Catch x:TypeArguments="s:Exception">
+                        <ActivityAction x:TypeArguments="s:Exception">
+                          <ActivityAction.Argument><DelegateInArgument x:TypeArguments="s:Exception" Name="ex_D" /></ActivityAction.Argument>
+                          <Sequence DisplayName="ignore locked / already-gone marker" />
+                        </ActivityAction>
+                      </Catch>
+                    </TryCatch.Catches>
+                  </TryCatch>
                 </ActivityAction>
               </ForEach.Body>
             </ForEach>
